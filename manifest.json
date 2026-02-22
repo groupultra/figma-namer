@@ -1,0 +1,13 @@
+{
+  "name": "Figma Namer - AI Semantic Layer Naming",
+  "id": "figma-namer-ai-semantic",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["*"]
+  },
+  "documentAccess": "dynamic-page",
+  "permissions": ["currentuser"]
+}

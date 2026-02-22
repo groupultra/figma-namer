@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+*.js.map
+.env
+.env.local
+.env.*.local
+.DS_Store
+*.log
+coverage/
+.vercel/
