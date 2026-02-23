@@ -152,8 +152,8 @@ export interface VLMResponse {
 
 /** Configuration for the naming tool */
 export interface NamerConfig {
-  /** VLM provider: 'claude', 'openai', or 'gemini' */
-  vlmProvider: 'claude' | 'openai' | 'gemini';
+  /** VLM model selection */
+  vlmProvider: 'gemini-flash' | 'gemini-pro' | 'claude-sonnet' | 'claude-opus' | 'gpt-5';
   /** Backend API endpoint */
   apiEndpoint: string;
   /** Max nodes per VLM batch */
@@ -228,7 +228,7 @@ export interface ProgressEvent {
 
 /** Default configuration */
 export const DEFAULT_CONFIG: NamerConfig = {
-  vlmProvider: 'claude',
+  vlmProvider: 'gemini-flash',
   apiEndpoint: 'https://figma-namer-api.vercel.app/api/naming',
   batchSize: 15,
   exportScale: 2,

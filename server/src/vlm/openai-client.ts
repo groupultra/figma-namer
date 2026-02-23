@@ -1,6 +1,6 @@
 // ============================================================
 // Figma Namer - OpenAI Client (Web Dashboard version)
-// Accepts apiKey as parameter instead of reading from env
+// Uses GPT-5.2 with vision capabilities
 // ============================================================
 
 import OpenAI from 'openai';
@@ -14,7 +14,7 @@ export async function callOpenAI(
 ): Promise<VLMResult> {
   const client = new OpenAI({ apiKey });
 
-  // Ensure proper data URI
+  // OpenAI requires the full data URI prefix
   let imageUrl: string;
   if (imageBase64.startsWith('data:image/')) {
     imageUrl = imageBase64;
@@ -23,7 +23,7 @@ export async function callOpenAI(
   }
 
   const response = await client.chat.completions.create({
-    model: 'gpt-4o',
+    model: 'gpt-5.2',
     max_tokens: 4096,
     temperature: 0.1,
     messages: [

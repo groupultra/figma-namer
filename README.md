@@ -1,6 +1,6 @@
 # Figma Namer
 
-AI-powered semantic layer naming for Figma. Supports Claude, GPT-4o, and Gemini.
+AI-powered semantic layer naming for Figma. Supports Gemini 3, Claude 4.6, and GPT-5.2.
 
 Two ways to use: **Web Dashboard** (recommended for most users) or **Figma Plugin** (for in-editor use).
 
@@ -14,7 +14,7 @@ The easiest way to use Figma Namer. Everything runs locally, no Vercel deploymen
 
 - Node.js 18+
 - A **Figma Personal Access Token** ([how to get one](https://www.figma.com/developers/api#access-tokens))
-- An API key from one of: **Anthropic** (Claude), **OpenAI** (GPT-4o), or **Google** (Gemini)
+- An API key from one of: **Google** (Gemini 3), **Anthropic** (Claude 4.6), or **OpenAI** (GPT-5.2)
 
 ### Quick Start
 
@@ -30,7 +30,7 @@ Browser opens at `http://localhost:5173`. Then:
 1. **Paste your Figma Token** — Personal Access Token from Figma Settings
 2. **Paste a Figma file URL** — e.g. `https://www.figma.com/design/xxxxx/MyFile`
    - To target a specific frame, append `?node-id=1-2` to the URL
-3. **Choose AI provider** — Claude / GPT-4o / Gemini
+3. **Choose AI model** — Gemini 3 Flash (default) / Gemini 3 Pro / Claude Sonnet / Claude Opus / GPT-5.2
 4. **Enter your API key** — for the chosen provider
 5. **Click "Analyze File"** — shows node count and type breakdown
 6. **Click "Start Naming"** — real-time progress as AI processes each batch
@@ -43,7 +43,7 @@ Browser opens at `http://localhost:5173`. Then:
 
 ```
 Browser (React)  →  Local Express server (port 3456)  →  Figma REST API
-                                                      →  Claude / GPT-4o / Gemini
+                                                      →  Gemini 3 / Claude 4.6 / GPT-5.2
 ```
 
 The server fetches the Figma file tree, traverses it, exports node screenshots via the Figma Images API, renders SoM (Set-of-Mark) overlays server-side, and calls your chosen AI model.
@@ -140,9 +140,11 @@ figma-namer/
 
 | Provider | Model | Best for |
 |----------|-------|----------|
-| **Anthropic** | claude-sonnet-4-6 | Best accuracy, detailed naming |
-| **OpenAI** | gpt-4o | Good all-around |
-| **Google** | gemini-2.5-flash | Fast, cost-effective |
+| **Google** | gemini-3-flash-preview | Fast & cheap (default) |
+| **Google** | gemini-3-pro-preview | Best reasoning |
+| **Anthropic** | claude-sonnet-4-6 | Balanced |
+| **Anthropic** | claude-opus-4-6 | Most capable |
+| **OpenAI** | gpt-5.2 | Best vision |
 
 ## License
 

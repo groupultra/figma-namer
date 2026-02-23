@@ -14,9 +14,11 @@ interface DashboardProps {
 }
 
 const VLM_PROVIDERS = [
-  { value: 'claude', label: 'Claude (Anthropic)', hint: 'claude-sonnet-4-6' },
-  { value: 'openai', label: 'GPT-4o (OpenAI)', hint: 'gpt-4o' },
-  { value: 'gemini', label: 'Gemini (Google)', hint: 'gemini-2.5-flash' },
+  { value: 'gemini-flash', label: 'Gemini 3 Flash', hint: 'Fast & cheap', group: 'Google' },
+  { value: 'gemini-pro', label: 'Gemini 3 Pro', hint: 'Best reasoning', group: 'Google' },
+  { value: 'claude-sonnet', label: 'Claude Sonnet', hint: 'Balanced', group: 'Anthropic' },
+  { value: 'claude-opus', label: 'Claude Opus', hint: 'Most capable', group: 'Anthropic' },
+  { value: 'gpt-5', label: 'GPT-5.2', hint: 'Best vision', group: 'OpenAI' },
 ] as const;
 
 const PLATFORMS = ['Auto', 'iOS', 'Android', 'Web'] as const;
@@ -28,7 +30,7 @@ const LS_VLM_KEY_PREFIX = 'figma-namer-vlm-key-';
 export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, error }) => {
   const [figmaToken, setFigmaToken] = useState(() => localStorage.getItem(LS_TOKEN_KEY) || '');
   const [figmaUrl, setFigmaUrl] = useState('');
-  const [vlmProvider, setVlmProvider] = useState(() => localStorage.getItem(LS_VLM_PROVIDER_KEY) || 'claude');
+  const [vlmProvider, setVlmProvider] = useState(() => localStorage.getItem(LS_VLM_PROVIDER_KEY) || 'gemini-flash');
   const [vlmApiKey, setVlmApiKey] = useState('');
   const [globalContext, setGlobalContext] = useState('');
   const [platform, setPlatform] = useState<string>('Auto');
@@ -36,9 +38,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
   const [batchSize, setBatchSize] = useState(DEFAULT_CONFIG.batchSize);
   const [exportScale, setExportScale] = useState(DEFAULT_CONFIG.exportScale);
 
+  // API key storage is grouped by vendor (same key for gemini-flash & gemini-pro, etc.)
+  const getKeyGroup = (provider: string) => {
+    if (provider.startsWith('claude')) return 'anthropic';
+    if (provider.startsWith('gemini')) return 'google';
+    return 'openai';
+  };
+
   // Load stored VLM API key when provider changes
   useEffect(() => {
-    const stored = localStorage.getItem(`${LS_VLM_KEY_PREFIX}${vlmProvider}`);
+    const stored = localStorage.getItem(`${LS_VLM_KEY_PREFIX}${getKeyGroup(vlmProvider)}`);
     if (stored) setVlmApiKey(stored);
     else setVlmApiKey('');
   }, [vlmProvider]);
@@ -47,7 +56,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
   const saveCredentials = () => {
     if (figmaToken) localStorage.setItem(LS_TOKEN_KEY, figmaToken);
     if (vlmProvider) localStorage.setItem(LS_VLM_PROVIDER_KEY, vlmProvider);
-    if (vlmApiKey) localStorage.setItem(`${LS_VLM_KEY_PREFIX}${vlmProvider}`, vlmApiKey);
+    if (vlmApiKey) localStorage.setItem(`${LS_VLM_KEY_PREFIX}${getKeyGroup(vlmProvider)}`, vlmApiKey);
   };
 
   const handleAnalyze = () => {
@@ -118,8 +127,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
 
         {/* VLM Provider */}
         <div style={styles.field}>
-          <label style={styles.label}>AI Model Provider</label>
-          <div style={styles.providerRow}>
+          <label style={styles.label}>AI Model</label>
+          <div style={styles.providerGrid}>
             {VLM_PROVIDERS.map((p) => (
               <button
                 key={p.value}
@@ -131,6 +140,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
               >
                 <span style={styles.providerLabel}>{p.label}</span>
                 <span style={styles.providerHint}>{p.hint}</span>
+                <span style={styles.providerGroup}>{p.group}</span>
               </button>
             ))}
           </div>
@@ -139,11 +149,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
         {/* VLM API Key */}
         <div style={styles.field}>
           <label style={styles.label}>
-            {vlmProvider === 'claude' ? 'Anthropic' : vlmProvider === 'openai' ? 'OpenAI' : 'Google'} API Key
+            {vlmProvider.startsWith('claude') ? 'Anthropic' : vlmProvider.startsWith('gemini') ? 'Google' : 'OpenAI'} API Key
           </label>
           <input
             type="password"
-            placeholder={`Enter your ${vlmProvider === 'claude' ? 'Anthropic' : vlmProvider === 'openai' ? 'OpenAI' : 'Google AI'} API key`}
+            placeholder={`Enter your ${vlmProvider.startsWith('claude') ? 'Anthropic' : vlmProvider.startsWith('gemini') ? 'Google AI' : 'OpenAI'} API key`}
             value={vlmApiKey}
             onChange={(e) => setVlmApiKey(e.target.value)}
             style={styles.input}
@@ -243,8 +253,10 @@ export function getStoredCredentials(): {
   vlmApiKey: string;
 } {
   const figmaToken = localStorage.getItem(LS_TOKEN_KEY) || '';
-  const vlmProvider = localStorage.getItem(LS_VLM_PROVIDER_KEY) || 'claude';
-  const vlmApiKey = localStorage.getItem(`${LS_VLM_KEY_PREFIX}${vlmProvider}`) || '';
+  const vlmProvider = localStorage.getItem(LS_VLM_PROVIDER_KEY) || 'gemini-flash';
+  const keyGroup = vlmProvider.startsWith('claude') ? 'anthropic'
+    : vlmProvider.startsWith('gemini') ? 'google' : 'openai';
+  const vlmApiKey = localStorage.getItem(`${LS_VLM_KEY_PREFIX}${keyGroup}`) || '';
   return { figmaToken, vlmProvider, vlmApiKey };
 }
 
@@ -322,27 +334,29 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--color-text-secondary)',
     marginTop: 4,
   },
-  providerRow: {
-    display: 'flex',
+  providerGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
     gap: 8,
   },
   providerChip: {
-    flex: 1,
-    padding: '8px 4px',
+    padding: '10px 6px 8px',
     borderRadius: 'var(--radius)',
     border: '1px solid var(--color-border)',
     background: 'var(--color-bg)',
     cursor: 'pointer',
     textAlign: 'center' as const,
     transition: 'all 0.15s ease',
+    position: 'relative' as const,
   },
   providerChipActive: {
     borderColor: 'var(--color-primary)',
     background: 'rgba(13,153,255,0.06)',
+    boxShadow: '0 0 0 1px var(--color-primary)',
   },
   providerLabel: {
     display: 'block',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: 600,
     color: 'var(--color-text)',
   },
@@ -351,6 +365,15 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 10,
     color: 'var(--color-text-secondary)',
     marginTop: 2,
+  },
+  providerGroup: {
+    display: 'block',
+    fontSize: 9,
+    color: 'var(--color-text-secondary)',
+    marginTop: 4,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px',
+    opacity: 0.7,
   },
   platformRow: {
     display: 'flex',

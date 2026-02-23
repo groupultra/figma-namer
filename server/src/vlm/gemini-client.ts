@@ -1,27 +1,30 @@
 // ============================================================
 // Figma Namer - Google Gemini Client
-// New VLM provider using the @google/genai SDK
+// Supports Gemini 3 Flash and Gemini 3 Pro
 // ============================================================
 
 import { GoogleGenAI } from '@google/genai';
 import type { VLMResult } from './claude-client';
+
+export type GeminiModel = 'gemini-3-flash-preview' | 'gemini-3-pro-preview';
 
 export async function callGemini(
   apiKey: string,
   imageBase64: string,
   systemPrompt: string,
   userPrompt: string,
+  model: GeminiModel = 'gemini-3-flash-preview',
 ): Promise<VLMResult> {
   const ai = new GoogleGenAI({ apiKey });
 
-  // Strip data URI prefix if present
+  // Strip data URI prefix if present (Gemini takes raw base64)
   const cleanBase64 = imageBase64.replace(
     /^data:image\/(png|jpeg|webp|gif);base64,/,
     '',
   );
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model,
     contents: [
       {
         role: 'user',
@@ -49,7 +52,7 @@ export async function callGemini(
 
   return {
     content,
-    model: 'gemini-2.5-flash',
+    model,
     usage: {
       promptTokens: response.usageMetadata?.promptTokenCount ?? 0,
       completionTokens: response.usageMetadata?.candidatesTokenCount ?? 0,

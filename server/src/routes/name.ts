@@ -10,9 +10,9 @@ import { createSession, emitProgress } from '../session/manager';
 import { exportNodeImage } from '../figma/image-export';
 import { renderSoMImage } from '../som/renderer';
 import { buildSystemPrompt, buildUserPrompt, type NodeSupplement } from '../vlm/prompt-builder';
-import { callClaude } from '../vlm/claude-client';
+import { callClaude, type ClaudeModel } from '../vlm/claude-client';
 import { callOpenAI } from '../vlm/openai-client';
-import { callGemini } from '../vlm/gemini-client';
+import { callGemini, type GeminiModel } from '../vlm/gemini-client';
 
 const router = Router();
 
@@ -245,14 +245,21 @@ async function processBatches(
     try {
       let result;
       switch (vlmProvider) {
-        case 'openai':
+        case 'claude-opus':
+          result = await callClaude(vlmApiKey, somBase64, systemPrompt, userPrompt, 'claude-opus-4-6');
+          break;
+        case 'claude-sonnet':
+          result = await callClaude(vlmApiKey, somBase64, systemPrompt, userPrompt, 'claude-sonnet-4-6');
+          break;
+        case 'gpt-5':
           result = await callOpenAI(vlmApiKey, somBase64, systemPrompt, userPrompt);
           break;
-        case 'gemini':
-          result = await callGemini(vlmApiKey, somBase64, systemPrompt, userPrompt);
+        case 'gemini-pro':
+          result = await callGemini(vlmApiKey, somBase64, systemPrompt, userPrompt, 'gemini-3-pro-preview');
           break;
+        case 'gemini-flash':
         default:
-          result = await callClaude(vlmApiKey, somBase64, systemPrompt, userPrompt);
+          result = await callGemini(vlmApiKey, somBase64, systemPrompt, userPrompt, 'gemini-3-flash-preview');
       }
       vlmContent = result.content;
     } catch (err: any) {

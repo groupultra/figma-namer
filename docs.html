@@ -176,9 +176,9 @@
   <h1>Figma Namer</h1>
   <p>AI 驱动的 Figma 图层语义化命名工具</p>
   <div class="hero-badges">
-    <span class="hero-badge"><span class="dot"></span> Claude</span>
-    <span class="hero-badge"><span class="dot"></span> GPT-4o</span>
-    <span class="hero-badge"><span class="dot"></span> Gemini</span>
+    <span class="hero-badge"><span class="dot"></span> Gemini 3</span>
+    <span class="hero-badge"><span class="dot"></span> Claude 4.6</span>
+    <span class="hero-badge"><span class="dot"></span> GPT-5.2</span>
   </div>
 </div>
 
@@ -199,7 +199,7 @@
         <ul style="font-size:13px; color:var(--text2); padding-left:18px;">
           <li>无需 Figma 桌面端</li>
           <li>无需部署后端 (Vercel)</li>
-          <li>支持三种 AI (Claude / GPT-4o / Gemini)</li>
+          <li>支持五种 AI 模型 (Gemini 3 / Claude 4.6 / GPT-5.2)</li>
           <li>实时进度条 + JSON/CSV 导出</li>
         </ul>
       </div>
@@ -265,7 +265,7 @@
         <div class="step">
           <div class="step-content">
             <strong>选择 AI 模型 + 输入 API Key</strong>
-            <div class="hint">Claude (最精准) / GPT-4o (综合) / Gemini (快且便宜)</div>
+            <div class="hint">五种模型可选，默认推荐 Gemini 3 Flash (快且便宜)</div>
           </div>
         </div>
         <div class="step">
@@ -392,9 +392,11 @@
             <tr><th>提供商</th><th>模型</th><th>特点</th></tr>
           </thead>
           <tbody>
-            <tr><td><strong>Anthropic</strong></td><td>claude-sonnet-4-6</td><td>最精准，命名质量最高</td></tr>
-            <tr><td><strong>OpenAI</strong></td><td>gpt-4o</td><td>综合能力强</td></tr>
-            <tr><td><strong>Google</strong></td><td>gemini-2.5-flash</td><td>速度快，成本低</td></tr>
+            <tr><td><strong>Google</strong></td><td>gemini-3-flash-preview</td><td>速度快、成本低 <span style="color:#E65100;font-weight:600;">默认推荐</span></td></tr>
+            <tr><td><strong>Google</strong></td><td>gemini-3-pro-preview</td><td>最强推理，100 万 token 上下文</td></tr>
+            <tr><td><strong>Anthropic</strong></td><td>claude-sonnet-4-6</td><td>均衡之选，命名质量高</td></tr>
+            <tr><td><strong>Anthropic</strong></td><td>claude-opus-4-6</td><td>最强综合能力</td></tr>
+            <tr><td><strong>OpenAI</strong></td><td>gpt-5.2</td><td>最强视觉理解</td></tr>
           </tbody>
         </table>
       </div>

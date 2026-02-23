@@ -1,6 +1,6 @@
 // ============================================================
 // Figma Namer - Claude Client (Web Dashboard version)
-// Accepts apiKey as parameter instead of reading from env
+// Supports both claude-opus-4-6 and claude-sonnet-4-6
 // ============================================================
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -15,11 +15,14 @@ export interface VLMResult {
   };
 }
 
+export type ClaudeModel = 'claude-opus-4-6' | 'claude-sonnet-4-6';
+
 export async function callClaude(
   apiKey: string,
   imageBase64: string,
   systemPrompt: string,
   userPrompt: string,
+  model: ClaudeModel = 'claude-sonnet-4-6',
 ): Promise<VLMResult> {
   const client = new Anthropic({ apiKey });
 
@@ -35,7 +38,7 @@ export async function callClaude(
   else if (imageBase64.startsWith('data:image/gif')) mediaType = 'image/gif';
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model,
     max_tokens: 4096,
     temperature: 0.1,
     system: systemPrompt,
