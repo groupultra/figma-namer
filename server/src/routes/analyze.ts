@@ -7,7 +7,7 @@
 import { Router } from 'express';
 import { parseFigmaUrl } from '../figma/url-parser';
 import { getFile } from '../figma/client';
-import { traverseFileTree, extractNodesById } from '../figma/traversal';
+import { traverseFileTree } from '../figma/traversal';
 import { buildCondensedTreeSummary } from '../figma/tree-summarizer';
 import { buildStructureAnalysisPrompt } from '../vlm/prompt-builder';
 import { callGemini } from '../vlm/gemini-client';
@@ -63,36 +63,27 @@ router.post('/', async (req, res) => {
         const analysisResult = await runStructureAnalysis(rootNodes, vlmApiKey, globalContext || '');
         structureAnalysis = analysisResult;
 
-        // Extract nodes for each non-auxiliary page
+        // For each non-auxiliary page, traverse its subtree to find nameable nodes
         pages = [];
         for (const page of analysisResult.pages) {
-          // Look up the page Frame node to get its absoluteBoundingBox
           const pageFrameNode = findPageNode(rootNodes, page.nodeId);
           const pageBBox = pageFrameNode?.absoluteBoundingBox ?? undefined;
 
           if (page.isAuxiliary) {
-            pages.push({ ...page, boundingBox: pageBBox }); // Include but with empty nodes
+            pages.push({ ...page, nodes: [], boundingBox: pageBBox });
             continue;
           }
 
-          if (page.nodeIdsToName.length > 0) {
-            // Extract specific nodes identified by AI
-            const targetIds = new Set(page.nodeIdsToName);
-            const pageNodes = extractNodesById(rootNodes, targetIds, config);
-            pages.push({ ...page, nodes: pageNodes, boundingBox: pageBBox });
+          if (pageFrameNode) {
+            const pageNodes = traverseFileTree([pageFrameNode], config);
+            pages.push({
+              ...page,
+              nodes: pageNodes,
+              nodeIdsToName: pageNodes.map(n => n.id),
+              boundingBox: pageBBox,
+            });
           } else {
-            // Fallback: traverse the page subtree
-            if (pageFrameNode) {
-              const pageNodes = traverseFileTree([pageFrameNode], config);
-              pages.push({
-                ...page,
-                nodes: pageNodes,
-                nodeIdsToName: pageNodes.map(n => n.id),
-                boundingBox: pageBBox,
-              });
-            } else {
-              pages.push({ ...page, boundingBox: pageBBox });
-            }
+            pages.push({ ...page, nodes: [], boundingBox: pageBBox });
           }
         }
       } catch (err: any) {
@@ -182,8 +173,7 @@ async function runStructureAnalysis(
     name: p.name || '',
     pageRole: p.pageRole || '',
     isAuxiliary: p.isAuxiliary === true,
-    nodeIdsToName: Array.isArray(p.nodeIdsToName) ? p.nodeIdsToName : [],
-    nodes: [], // Will be populated later
+    nodes: [], // Will be populated by traversal
   }));
 
   return {

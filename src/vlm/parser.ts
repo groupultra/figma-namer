@@ -257,15 +257,57 @@ function extractJsonArray(text: string): string | null {
     cleaned = fenceMatch[1].trim();
   }
 
+  // Also handle { "namings": [...] } wrapper format
+  const wrappedPattern = /\{\s*"namings"\s*:\s*(\[[\s\S]*\])\s*\}/;
+  const wrappedMatch = cleaned.match(wrappedPattern);
+  if (wrappedMatch) {
+    return wrappedMatch[1];
+  }
+
   // Try to find the outermost [ ... ] bracket pair
   const firstBracket = cleaned.indexOf('[');
   const lastBracket = cleaned.lastIndexOf(']');
 
-  if (firstBracket === -1 || lastBracket === -1 || lastBracket <= firstBracket) {
-    return null;
+  if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+    return cleaned.substring(firstBracket, lastBracket + 1);
   }
 
-  return cleaned.substring(firstBracket, lastBracket + 1);
+  // Handle truncated JSON: response cut off mid-array (no closing ']')
+  // Try to recover by finding the last complete object and closing the array
+  if (firstBracket !== -1 && lastBracket === -1) {
+    const partial = cleaned.substring(firstBracket);
+    // Find the last complete JSON object (ends with '}')
+    const lastCloseBrace = partial.lastIndexOf('}');
+    if (lastCloseBrace > 0) {
+      const recovered = partial.substring(0, lastCloseBrace + 1) + ']';
+      // Verify it parses
+      try {
+        JSON.parse(recovered);
+        console.warn('[Figma Namer] Recovered truncated JSON array (' + recovered.length + ' chars)');
+        return recovered;
+      } catch (_e) {
+        // Try removing the last potentially incomplete object
+        const secondLastBrace = partial.lastIndexOf('}', lastCloseBrace - 1);
+        if (secondLastBrace > 0) {
+          // Find the comma before the incomplete object
+          const afterSecondLast = partial.substring(secondLastBrace + 1, lastCloseBrace + 1);
+          const commaIdx = afterSecondLast.indexOf(',');
+          if (commaIdx !== -1) {
+            const trimmed = partial.substring(0, secondLastBrace + 1) + ']';
+            try {
+              JSON.parse(trimmed);
+              console.warn('[Figma Namer] Recovered truncated JSON (dropped last incomplete entry)');
+              return trimmed;
+            } catch (_e2) {
+              // Give up
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 /**

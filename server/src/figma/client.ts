@@ -81,6 +81,37 @@ export async function getImages(
 }
 
 /**
+ * Fetch specific nodes by IDs, returning their full subtrees.
+ * Uses the /v1/files/{key}/nodes?ids=... endpoint.
+ */
+export async function getNodes(
+  fileKey: string,
+  token: string,
+  nodeIds: string[],
+  geometry: boolean = true,
+): Promise<Record<string, { document: any }>> {
+  const params = new URLSearchParams();
+  params.set('ids', nodeIds.join(','));
+  if (geometry) {
+    params.set('geometry', 'paths');
+  }
+
+  const url = `${FIGMA_API_BASE}/files/${fileKey}/nodes?${params.toString()}`;
+
+  const res = await fetch(url, {
+    headers: { 'X-Figma-Token': token },
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Figma Nodes API error ${res.status}: ${body}`);
+  }
+
+  const data = await res.json();
+  return data.nodes || {};
+}
+
+/**
  * Download an image from a Figma CDN URL and return it as a Buffer.
  */
 export async function downloadImage(cdnUrl: string): Promise<Buffer> {

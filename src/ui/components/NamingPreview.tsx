@@ -134,12 +134,19 @@ export const NamingPreview: React.FC<NamingPreviewProps> = ({
   };
 
   const handleApply = () => {
+    console.log('[NamingPreview] handleApply called');
+    console.log('[NamingPreview] total results:', results.length);
+    console.log('[NamingPreview] selected nodeIds:', Array.from(selected));
     const accepted = results
       .filter((r) => selected.has(r.nodeId))
       .map((r) => ({
         ...r,
         suggestedName: getFinalName(r),
       }));
+    console.log('[NamingPreview] accepted count:', accepted.length);
+    if (accepted.length > 0) {
+      console.log('[NamingPreview] first accepted:', JSON.stringify(accepted[0]));
+    }
     onApply(accepted);
   };
 

@@ -96,7 +96,7 @@
     .mode-title { font-size: 18px; font-weight: 700; }
     .mode-subtitle { font-size: 13px; color: var(--text2); }
     .recommended {
-      display: inline-block; background: #FFF3E0; color: #E65100;
+      display: inline-block; background: #E8F5E9; color: #2E7D32;
       font-size: 11px; font-weight: 700; padding: 2px 8px;
       border-radius: 4px; margin-left: 8px; vertical-align: middle;
     }
@@ -157,6 +157,9 @@
       background: #FFFDE7; border-left: 4px solid #FFB300;
       padding: 12px 16px; border-radius: 0 8px 8px 0;
       font-size: 13px; color: #5D4037; margin: 12px 0;
+    }
+    .note.green {
+      background: #E8F5E9; border-left-color: #4CAF50; color: #1B5E20;
     }
 
     /* Footer */
@@ -239,14 +242,14 @@
         <div class="mode-header">
           <div class="mode-icon web">🌐</div>
           <div>
-            <div class="mode-title">Web Dashboard <span class="recommended"><span class="zh">推荐</span><span class="en">Recommended</span></span></div>
+            <div class="mode-title">Web Dashboard <span class="recommended"><span class="zh">批量分析+导出</span><span class="en">Batch analysis + export</span></span></div>
             <div class="mode-subtitle"><span class="zh">浏览器中独立使用，一键启动</span><span class="en">Standalone browser app, one-click start</span></div>
           </div>
         </div>
         <ul style="font-size:13px; color:var(--text2); padding-left:18px;">
           <li><span class="zh">无需 Figma 桌面端</span><span class="en">No Figma Desktop required</span></li>
-          <li><span class="zh">无需部署后端 (Vercel)</span><span class="en">No backend deployment (Vercel) needed</span></li>
-          <li><span class="zh">支持五种 AI 模型 (Gemini 3 / Claude 4.6 / GPT-5.2)</span><span class="en">5 AI models (Gemini 3 / Claude 4.6 / GPT-5.2)</span></li>
+          <li><span class="zh">两轮 AI 流水线，自动识别页面结构</span><span class="en">Two-round AI pipeline, auto structure detection</span></li>
+          <li><span class="zh">支持五种 AI 模型</span><span class="en">5 AI model options</span></li>
           <li><span class="zh">实时进度条 + JSON/CSV 导出</span><span class="en">Real-time progress + JSON/CSV export</span></li>
         </ul>
       </div>
@@ -254,15 +257,15 @@
         <div class="mode-header">
           <div class="mode-icon plugin">🔌</div>
           <div>
-            <div class="mode-title">Figma Plugin</div>
-            <div class="mode-subtitle"><span class="zh">在 Figma 内直接使用</span><span class="en">Use directly within Figma</span></div>
+            <div class="mode-title">Figma Plugin <span class="recommended"><span class="zh">一键应用</span><span class="en">One-click apply</span></span></div>
+            <div class="mode-subtitle"><span class="zh">在 Figma 内直接使用，无需后端</span><span class="en">Use directly within Figma, no backend needed</span></div>
           </div>
         </div>
         <ul style="font-size:13px; color:var(--text2); padding-left:18px;">
           <li><span class="zh">选中图层 → 自动遍历命名</span><span class="en">Select layers → auto traverse & name</span></li>
-          <li><span class="zh">一键应用命名到画布</span><span class="en">Apply names to canvas in one click</span></li>
-          <li><span class="zh">支持撤销</span><span class="en">Supports undo</span></li>
-          <li><span class="zh">需要配置 Vercel 后端</span><span class="en">Requires Vercel backend setup</span></li>
+          <li><span class="zh">直接调用 AI API，无需后端</span><span class="en">Direct AI API calls, no backend needed</span></li>
+          <li><span class="zh">API Key 本地存储，安全可靠</span><span class="en">API key stored locally, secure</span></li>
+          <li><span class="zh">一键应用命名 + 支持撤销</span><span class="en">Apply names in one click + undo support</span></li>
         </ul>
       </div>
     </div>
@@ -280,7 +283,7 @@
       <ul style="padding-left:18px; color:var(--text2); font-size:14px;">
         <li><strong>Node.js 18+</strong></li>
         <li><strong>Figma Personal Access Token</strong> — <span class="zh">在 Figma → Settings → Personal Access Tokens 生成</span><span class="en">Generate at Figma → Settings → Personal Access Tokens</span></li>
-        <li><strong>AI API Key</strong> — <span class="zh">Anthropic / OpenAI / Google 任选其一</span><span class="en">Any one of Anthropic / OpenAI / Google</span></li>
+        <li><strong>AI API Key</strong> — <span class="zh">Google / Anthropic / OpenAI 任选其一</span><span class="en">Any one of Google / Anthropic / OpenAI</span></li>
       </ul>
     </div>
 
@@ -365,6 +368,10 @@
       <span class="zh">Figma Plugin (编辑器内)</span><span class="en">Figma Plugin (In-Editor)</span>
     </div>
 
+    <div class="note green">
+      <strong><span class="zh">无需后端！</span><span class="en">No backend needed! </span></strong><span class="zh">插件直接从浏览器调用 AI API（Google / Anthropic / OpenAI），你只需提供自己的 API Key。密钥存储在 Figma 本地 clientStorage 中，不会发送到任何第三方服务器。</span><span class="en">The plugin calls AI APIs directly from the browser (Google / Anthropic / OpenAI). Just provide your own API key. Keys are stored in Figma's local clientStorage and never sent to any third-party server.</span>
+    </div>
+
     <div class="card">
       <h3><span class="zh">安装插件</span><span class="en">Install Plugin</span></h3>
       <div class="code">
@@ -382,21 +389,69 @@
             <strong><span class="zh">选择项目根目录的 manifest.json</span><span class="en">Select manifest.json from the project root</span></strong>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="zh">使用步骤</span><span class="en">How to Use</span></h3>
+      <div class="steps">
         <div class="step">
           <div class="step-content">
-            <strong><span class="zh">在画布上选中 Frame → 打开插件 → Start Naming</span><span class="en">Select a Frame on canvas → open plugin → Start Naming</span></strong>
+            <strong><span class="zh">在画布上选中 Frame</span><span class="en">Select frames on your Figma canvas</span></strong>
+            <div class="hint"><span class="zh">可以选中一个或多个 Frame / Group / Component</span><span class="en">Select one or more Frames / Groups / Components</span></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong><span class="zh">打开插件</span><span class="en">Open the plugin</span></strong>
+            <div class="hint">Plugins → Development → Figma Namer</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong><span class="zh">输入全局上下文</span><span class="en">Enter global context</span></strong>
+            <div class="hint"><span class="zh">例如 "电商结账流程" 或 "医疗 SaaS iPad 门诊仪表盘"</span><span class="en">e.g. "E-commerce checkout flow" or "Medical SaaS iPad dashboard"</span></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong><span class="zh">选择平台 + AI 服务商</span><span class="en">Choose platform + AI provider</span></strong>
+            <div class="hint"><span class="zh">平台：Auto / iOS / Android / Web。AI：Gemini Flash (默认推荐) / Gemini Pro / Claude Sonnet / Claude Opus / GPT-5.2</span><span class="en">Platform: Auto / iOS / Android / Web. AI: Gemini Flash (default) / Gemini Pro / Claude Sonnet / Claude Opus / GPT-5.2</span></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong><span class="zh">输入 API Key</span><span class="en">Enter API Key</span></strong>
+            <div class="hint"><span class="zh">对应服务商的密钥。本地存储在 Figma clientStorage 中，不会发送到任何第三方服务器。首次输入后自动保存，切换服务商时各自独立。</span><span class="en">Your API key for the chosen provider. Stored locally in Figma clientStorage, never sent to any third-party server. Saved automatically, each provider family has its own key.</span></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong><span class="zh">点击 "Start Naming"</span><span class="en">Click "Start Naming"</span></strong>
+            <div class="hint"><span class="zh">插件自动遍历图层 → 截图 → SoM 标注 → 调用 AI → 返回命名建议</span><span class="en">Plugin auto-traverses layers → screenshots → SoM annotation → AI call → returns naming suggestions</span></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong><span class="zh">审查 → 应用</span><span class="en">Review → Apply</span></strong>
+            <div class="hint"><span class="zh">预览 AI 生成的名称，确认后点击 "Apply" 直接写入 Figma 图层。支持撤销。</span><span class="en">Preview AI-generated names, click "Apply" to write directly to Figma layers. Supports undo.</span></div>
           </div>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <h3><span class="zh">自建后端 (可选)</span><span class="en">Self-host Backend (Optional)</span></h3>
-      <div class="code">
-        <span class="cmd">cd</span> backend<br>
-        <span class="cmd">npm install</span><br>
-        <span class="comment"><span class="zh"># 设置环境变量: ANTHROPIC_API_KEY 和/或 OPENAI_API_KEY</span><span class="en"># Set env vars: ANTHROPIC_API_KEY and/or OPENAI_API_KEY</span></span><br>
-        <span class="cmd">vercel dev</span>
+      <h3><span class="zh">插件架构</span><span class="en">Plugin Architecture</span></h3>
+      <div class="diagram">
+        <div class="diagram-box browser">code.ts<br><small><span class="zh">Figma 沙箱</span><span class="en">Figma sandbox</span><br><span class="zh">遍历 + 截图 + 批次</span><span class="en">Traverse + screenshot + batch</span></small></div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box server">UI iframe<br><small><span class="zh">SoM 渲染 + VLM 调用</span><span class="en">SoM render + VLM call</span></small></div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box external"><span class="zh">AI API</span><span class="en">AI API</span><br><small><span class="zh">直接调用 (fetch)</span><span class="en">Direct call (fetch)</span></small></div>
+      </div>
+      <div style="font-size:12px; color:var(--text3); text-align:center; margin-top:8px;">
+        <span class="zh">无后端服务器 — 插件 UI 直接通过 fetch 调用 AI API</span>
+        <span class="en">No backend server — plugin UI calls AI APIs directly via fetch</span>
       </div>
     </div>
   </div>
@@ -443,9 +498,42 @@
             <tr><td><strong>Google</strong></td><td>gemini-3-pro-preview</td><td><span class="zh">最强推理，100 万 token 上下文</span><span class="en">Best reasoning, 1M token context</span></td></tr>
             <tr><td><strong>Anthropic</strong></td><td>claude-sonnet-4-6</td><td><span class="zh">均衡之选，命名质量高</span><span class="en">Balanced, high naming quality</span></td></tr>
             <tr><td><strong>Anthropic</strong></td><td>claude-opus-4-6</td><td><span class="zh">最强综合能力</span><span class="en">Best overall capability</span></td></tr>
-            <tr><td><strong>OpenAI</strong></td><td>gpt-5.2</td><td><span class="zh">最强视觉理解</span><span class="en">Best visual understanding</span></td></tr>
+            <tr><td><strong>OpenAI</strong></td><td>gpt-5.2</td><td><span class="zh">视觉理解（插件中 CORS 可能不可用）</span><span class="en">Vision (CORS may not work in plugin)</span></td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+    <div class="note" style="margin-top:12px;">
+      <strong><span class="zh">关于 OpenAI CORS：</span><span class="en">About OpenAI CORS: </span></strong><span class="zh">OpenAI API 可能不支持浏览器直接调用（CORS 限制）。如在 Figma 插件中使用 GPT-5.2 遇到问题，请切换到 Gemini 或 Claude。Web Dashboard 不受此限制（通过本地服务器代理）。</span><span class="en">The OpenAI API may not support direct browser calls (CORS restriction). If GPT-5.2 fails in the Figma plugin, switch to Gemini or Claude. The Web Dashboard is not affected (proxied via local server).</span>
+    </div>
+  </div>
+
+  <!-- API Key Guide -->
+  <div class="section">
+    <div class="section-title">
+      <span class="section-tag"><span class="zh">指南</span><span class="en">Guide</span></span>
+      <span class="zh">获取 API Key</span><span class="en">Getting API Keys</span>
+    </div>
+    <div class="card">
+      <div class="steps">
+        <div class="step">
+          <div class="step-content">
+            <strong>Google AI (Gemini)</strong>
+            <div class="hint"><span class="zh">访问 <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--blue)">aistudio.google.com/apikey</a> → 创建 API Key → 免费额度充足</span><span class="en">Visit <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--blue)">aistudio.google.com/apikey</a> → Create API Key → generous free tier</span></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong>Anthropic (Claude)</strong>
+            <div class="hint"><span class="zh">访问 <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--blue)">console.anthropic.com</a> → API Keys → Create Key</span><span class="en">Visit <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--blue)">console.anthropic.com</a> → API Keys → Create Key</span></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong>OpenAI (GPT-5.2)</strong>
+            <div class="hint"><span class="zh">访问 <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--blue)">platform.openai.com/api-keys</a> → Create new secret key</span><span class="en">Visit <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--blue)">platform.openai.com/api-keys</a> → Create new secret key</span></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

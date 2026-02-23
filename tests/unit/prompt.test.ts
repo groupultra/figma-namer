@@ -122,8 +122,8 @@ describe('buildSystemPrompt', () => {
 describe('buildUserPrompt', () => {
   it('should include the count of marked elements', () => {
     const supplements: NodeSupplement[] = [
-      { markId: 1, textContent: 'Login', boundVariables: [], componentProperties: {} },
-      { markId: 2, textContent: null, boundVariables: [], componentProperties: {} },
+      { markId: 1, originalName: 'Frame 1', textContent: 'Login', boundVariables: [], componentProperties: {} },
+      { markId: 2, originalName: 'Group 17', textContent: null, boundVariables: [], componentProperties: {} },
     ];
 
     const prompt = buildUserPrompt(supplements);
@@ -132,8 +132,8 @@ describe('buildUserPrompt', () => {
 
   it('should include markId list at the end', () => {
     const supplements: NodeSupplement[] = [
-      { markId: 3, textContent: null, boundVariables: [], componentProperties: {} },
-      { markId: 7, textContent: null, boundVariables: [], componentProperties: {} },
+      { markId: 3, originalName: 'Frame 99', textContent: null, boundVariables: [], componentProperties: {} },
+      { markId: 7, originalName: 'Vector 3', textContent: null, boundVariables: [], componentProperties: {} },
     ];
 
     const prompt = buildUserPrompt(supplements);
@@ -142,7 +142,7 @@ describe('buildUserPrompt', () => {
 
   it('should include textContent in XML tags for nodes with text', () => {
     const supplements: NodeSupplement[] = [
-      { markId: 1, textContent: 'Sign In', boundVariables: [], componentProperties: {} },
+      { markId: 1, originalName: 'login_btn', textContent: 'Sign In', boundVariables: [], componentProperties: {} },
     ];
 
     const prompt = buildUserPrompt(supplements);
@@ -151,7 +151,7 @@ describe('buildUserPrompt', () => {
 
   it('should show null for textContent when text is absent', () => {
     const supplements: NodeSupplement[] = [
-      { markId: 1, textContent: null, boundVariables: [], componentProperties: {} },
+      { markId: 1, originalName: 'Rectangle 5', textContent: null, boundVariables: [], componentProperties: {} },
     ];
 
     const prompt = buildUserPrompt(supplements);
@@ -160,7 +160,7 @@ describe('buildUserPrompt', () => {
 
   it('should show null for textContent when text is empty string', () => {
     const supplements: NodeSupplement[] = [
-      { markId: 1, textContent: '', boundVariables: [], componentProperties: {} },
+      { markId: 1, originalName: 'Frame 10', textContent: '', boundVariables: [], componentProperties: {} },
     ];
 
     const prompt = buildUserPrompt(supplements);
@@ -171,6 +171,7 @@ describe('buildUserPrompt', () => {
     const supplements: NodeSupplement[] = [
       {
         markId: 1,
+        originalName: 'primary_box',
         textContent: null,
         boundVariables: ['Colors/Primary/Default', 'Spacing/md'],
         componentProperties: {},
@@ -183,7 +184,7 @@ describe('buildUserPrompt', () => {
 
   it('should omit boundVariables tag when no variables are bound', () => {
     const supplements: NodeSupplement[] = [
-      { markId: 1, textContent: null, boundVariables: [], componentProperties: {} },
+      { markId: 1, originalName: 'Rectangle 5', textContent: null, boundVariables: [], componentProperties: {} },
     ];
 
     const prompt = buildUserPrompt(supplements);
@@ -194,6 +195,7 @@ describe('buildUserPrompt', () => {
     const supplements: NodeSupplement[] = [
       {
         markId: 1,
+        originalName: 'btn_variant',
         textContent: null,
         boundVariables: [],
         componentProperties: { Variant: 'Primary', Size: 'Large' },
@@ -208,7 +210,7 @@ describe('buildUserPrompt', () => {
 
   it('should omit componentProperties tag when no properties exist', () => {
     const supplements: NodeSupplement[] = [
-      { markId: 1, textContent: null, boundVariables: [], componentProperties: {} },
+      { markId: 1, originalName: 'Rectangle 5', textContent: null, boundVariables: [], componentProperties: {} },
     ];
 
     const prompt = buildUserPrompt(supplements);
@@ -219,6 +221,7 @@ describe('buildUserPrompt', () => {
     const supplements: NodeSupplement[] = [
       {
         markId: 1,
+        originalName: 'price_label',
         textContent: 'Price < $10 & "free" shipping',
         boundVariables: [],
         componentProperties: {},
@@ -234,7 +237,7 @@ describe('buildUserPrompt', () => {
 
   it('should wrap each node in XML node tags with markId attribute', () => {
     const supplements: NodeSupplement[] = [
-      { markId: 42, textContent: 'Test', boundVariables: [], componentProperties: {} },
+      { markId: 42, originalName: 'test_btn', textContent: 'Test', boundVariables: [], componentProperties: {} },
     ];
 
     const prompt = buildUserPrompt(supplements);
@@ -244,7 +247,7 @@ describe('buildUserPrompt', () => {
 
   it('should include node_supplements wrapper', () => {
     const supplements: NodeSupplement[] = [
-      { markId: 1, textContent: null, boundVariables: [], componentProperties: {} },
+      { markId: 1, originalName: 'Rectangle 5', textContent: null, boundVariables: [], componentProperties: {} },
     ];
 
     const prompt = buildUserPrompt(supplements);
@@ -254,7 +257,7 @@ describe('buildUserPrompt', () => {
 
   it('should include CESPC reminder in the prompt', () => {
     const supplements: NodeSupplement[] = [
-      { markId: 1, textContent: null, boundVariables: [], componentProperties: {} },
+      { markId: 1, originalName: 'Rectangle 5', textContent: null, boundVariables: [], componentProperties: {} },
     ];
 
     const prompt = buildUserPrompt(supplements);
@@ -269,9 +272,9 @@ describe('buildUserPrompt', () => {
 
   it('should handle multiple supplements correctly', () => {
     const supplements: NodeSupplement[] = [
-      { markId: 1, textContent: 'Login', boundVariables: ['Colors/Primary'], componentProperties: { Size: 'L' } },
-      { markId: 2, textContent: null, boundVariables: [], componentProperties: {} },
-      { markId: 3, textContent: 'Submit', boundVariables: [], componentProperties: {} },
+      { markId: 1, originalName: 'login_form', textContent: 'Login', boundVariables: ['Colors/Primary'], componentProperties: { Size: 'L' } },
+      { markId: 2, originalName: 'Group 17', textContent: null, boundVariables: [], componentProperties: {} },
+      { markId: 3, originalName: 'submit_btn', textContent: 'Submit', boundVariables: [], componentProperties: {} },
     ];
 
     const prompt = buildUserPrompt(supplements);

@@ -155,9 +155,7 @@ export interface VLMResponse {
 /** Configuration for the naming tool */
 export interface NamerConfig {
   /** VLM model selection */
-  vlmProvider: 'gemini-flash' | 'gemini-pro' | 'claude-sonnet' | 'claude-opus' | 'gpt-5';
-  /** Backend API endpoint */
-  apiEndpoint: string;
+  vlmProvider: 'gemini-flash' | 'gemini-pro' | 'claude-sonnet' | 'claude-opus' | 'gpt-5.2';
   /** Max nodes per VLM batch */
   batchSize: number;
   /** Image export scale factor */
@@ -215,8 +213,8 @@ export interface PageInfo {
   pageRole: string;
   /** Whether this is an auxiliary element (notes, annotations, dividers) */
   isAuxiliary: boolean;
-  /** Node IDs within this page that need naming */
-  nodeIdsToName: string[];
+  /** Node IDs within this page that need naming (populated by traversal) */
+  nodeIdsToName?: string[];
   /** Extracted node metadata for nodes to name */
   nodes: NodeMetadata[];
   /** Bounding box of the page Frame itself (for coordinate offset) */
@@ -295,7 +293,6 @@ export interface ProgressEvent {
 /** Default configuration */
 export const DEFAULT_CONFIG: NamerConfig = {
   vlmProvider: 'gemini-flash',
-  apiEndpoint: 'https://figma-namer-api.vercel.app/api/naming',
   batchSize: 8,
   exportScale: 2,
   highlightColor: '#FF0040',

@@ -5,6 +5,7 @@
 
 export interface NodeSupplement {
   markId: number;
+  originalName: string;
   textContent: string | null;
   boundVariables: string[];
   componentProperties: Record<string, string>;
@@ -143,8 +144,9 @@ ${platformSection}
   <rule id="8">If a node contains text, consider whether the text reveals the element's purpose (e.g., "Submit" -> button, "Username" -> input-label).</rule>
   <rule id="9">Use boundVariables to infer semantic meaning (e.g., "Surface/Danger" -> error state, "Color/Primary" -> primary variant).</rule>
   <rule id="10">Use componentProperties to detect variants and states (e.g., "State=Disabled" -> disabled).</rule>
-  <rule id="11">Assign a confidence score (0.0-1.0) for each naming: 1.0 = visually obvious, 0.5 = educated guess, below 0.3 = uncertain.</rule>
-  <rule id="12">If global context is provided, use it to inform the Context segment of names.</rule>
+  <rule id="11">Use the originalName as a contextual clue when it carries semantic meaning (e.g., "login_btn" hints at a login button, "nav-header" hints at navigation). Ignore auto-generated names like "Frame 243", "Group 17", "Rectangle 5" — they carry no semantic value.</rule>
+  <rule id="12">Assign a confidence score (0.0-1.0) for each naming: 1.0 = visually obvious, 0.5 = educated guess, below 0.3 = uncertain.</rule>
+  <rule id="13">If global context is provided, use it to inform the Context segment of names.</rule>
 </rules>
 
 <global-context>${globalContext || 'No specific context provided.'}</global-context>
@@ -177,6 +179,8 @@ Return a JSON object with the "namings" array.
   const supplementXml = supplements
     .map((s) => {
       const parts: string[] = [`    <mark id="${s.markId}">`];
+
+      parts.push(`      <original-name>${escapeXml(s.originalName)}</original-name>`);
 
       if (s.textContent) {
         parts.push(`      <text>${escapeXml(s.textContent)}</text>`);
@@ -230,26 +234,31 @@ You will receive a text-only tree summary showing the hierarchy of nodes with th
 
 <objectives>
 1. Classify the file type: app-screens, component-library, icon-library, mixed, landing-page, or unknown
-2. Identify which top-level nodes are actual UI pages/screens vs auxiliary elements (notes, annotations, arrows, dividers, labels)
-3. For each real page, list the node IDs of children that need semantic naming
-4. Handle duplicate page names by noting distinguishing characteristics from their children
+2. Identify which top-level nodes are actual UI pages/screens vs auxiliary elements (noise)
+3. Handle duplicate page names by noting distinguishing characteristics from their children
 </objectives>
 
 <auxiliary-patterns>
-Elements that are typically auxiliary (noise):
-- Nodes named "Notes", "Annotations", "TODO", "Label", "Arrow", "Divider", "Separator", "---"
-- Very narrow or very tall rectangles (divider lines)
-- Standalone TEXT nodes at the top level
+Elements that are typically auxiliary (noise) and should be marked isAuxiliary=true:
+- Standalone TEXT or VECTOR nodes at the top level (labels, annotations, arrows)
+- Nodes named "Notes", "Annotations", "TODO", "Label", "Arrow", "Divider", "Separator", "---", or similar annotation patterns
+- Very narrow or very tall rectangles (divider lines, e.g., width < 20px or height < 20px while the other dimension is large)
 - Frames with no children or only TEXT children (comment frames)
 - Nodes with dimensions suggesting they are not screens (e.g., < 100px in both dimensions)
+- Empty FRAME or GROUP nodes with zero children
+- Nodes whose names match annotation patterns: names starting with "#", "//", containing "note", "comment", "annotation" (case-insensitive)
 </auxiliary-patterns>
 
+<section-handling>
+If a top-level node is a SECTION type, do NOT treat the SECTION itself as a page.
+Instead, treat each direct child of the SECTION as a page candidate and evaluate them individually.
+SECTIONs in Figma are organizational containers, not UI screens.
+</section-handling>
+
 <rules>
-1. A "page" is a top-level FRAME, COMPONENT, or SECTION that represents a complete UI screen or component view
-2. Auxiliary elements should have isAuxiliary=true and empty nodeIdsToName
-3. For pages, list child node IDs that have default names (Frame 1, Group 2, etc.) or are INSTANCE/COMPONENT types — these need naming
-4. Maximum 500 total nodes across all pages' nodeIdsToName arrays
-5. If two pages share the same name, explain their differences in the pageRole field
+1. A "page" is a top-level FRAME, COMPONENT, or COMPONENT_SET that represents a complete UI screen or component view
+2. Auxiliary elements should have isAuxiliary=true — they will be skipped during naming
+3. If two pages share the same name, explain their differences in the pageRole field
 </rules>
 
 <global-context>${globalContext || 'No specific context provided.'}</global-context>
@@ -265,8 +274,7 @@ The JSON must match this exact structure:
       "nodeId": "<figma node ID>",
       "name": "<display name>",
       "pageRole": "<description of what this page/screen represents>",
-      "isAuxiliary": false,
-      "nodeIdsToName": ["<child-id-1>", "<child-id-2>", ...]
+      "isAuxiliary": false
     }
   ]
 }
@@ -274,7 +282,7 @@ The JSON must match this exact structure:
 
   const user = `<task>
 Analyze the following Figma file tree summary and classify its structure.
-Identify pages vs auxiliary elements, and list which nodes need naming.
+Identify pages vs auxiliary elements.
 
 <tree-summary>
 ${treeSummary}
@@ -321,8 +329,9 @@ ${platformSection}
   <rule id="8">Keep names concise: aim for 2-4 segments maximum.</rule>
   <rule id="9">Components on the same page are siblings — use consistent Context segments for them.</rule>
   <rule id="10">If a node contains text, consider whether the text reveals the element's purpose.</rule>
-  <rule id="11">Assign a confidence score (0.0-1.0) for each naming.</rule>
-  <rule id="12">If global context is provided, use it to inform the Context segment of names.</rule>
+  <rule id="11">Use the originalName as a contextual clue when it carries semantic meaning (e.g., "login_btn", "nav-header", "购物车"). Ignore auto-generated names like "Frame 243", "Group 17", "Rectangle 5".</rule>
+  <rule id="12">Assign a confidence score (0.0-1.0) for each naming.</rule>
+  <rule id="13">If global context is provided, use it to inform the Context segment of names.</rule>
 </rules>
 
 <global-context>${globalContext || 'No specific context provided.'}</global-context>

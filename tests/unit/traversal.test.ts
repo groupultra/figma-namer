@@ -18,8 +18,7 @@ import type { NamerConfig } from '../../src/shared/types';
 /** Returns a default NamerConfig for tests */
 function createDefaultConfig(overrides: Partial<NamerConfig> = {}): NamerConfig {
   return {
-    vlmProvider: 'claude',
-    apiEndpoint: 'https://example.com/api',
+    vlmProvider: 'claude-sonnet',
     batchSize: 15,
     exportScale: 2,
     highlightColor: '#FF0040',

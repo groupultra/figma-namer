@@ -113,13 +113,13 @@ export function extractBoundVariables(node: SceneNode): string[] {
           if (variable && variable.name) {
             result.push(variable.name);
           }
-        } catch {
+        } catch (_e) {
           // Variable may have been deleted or the API call failed;
           // silently skip to avoid breaking the traversal.
         }
       }
     }
-  } catch {
+  } catch (_e) {
     // Defensive: boundVariables API may not be available in older
     // Figma versions or certain node types.
   }
@@ -182,7 +182,7 @@ function extractComponentProperties(
         props[key] = String(prop.value);
       }
     }
-  } catch {
+  } catch (_e) {
     // Defensive: componentProperties may throw for detached instances.
   }
 

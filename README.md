@@ -4,7 +4,7 @@ AI-powered semantic layer naming for Figma. Supports Gemini 3, Claude 4.6, and G
 
 **Agentic two-round pipeline**: Round 1 uses LLM to analyze file structure (pages vs noise), Round 2 names components per-page with 3-image context. Cuts cost from ~$50 to ~$2.60 and time from 30 min to 3 min on large files.
 
-Two ways to use: **Web Dashboard** (recommended) or **Figma Plugin** (in-editor).
+Two ways to use: **Web Dashboard** (batch analysis with export) or **Figma Plugin** (in-editor, one-click apply).
 
 > **[中文文档](./README.zh-CN.md)**
 
@@ -12,13 +12,13 @@ Two ways to use: **Web Dashboard** (recommended) or **Figma Plugin** (in-editor)
 
 ## Usage A: Web Dashboard (Browser)
 
-The easiest way to use Figma Namer. Everything runs locally, no Vercel deployment needed.
+The easiest way to use Figma Namer. Everything runs locally, no cloud deployment needed.
 
 ### Prerequisites
 
 - Node.js 18+
 - A **Figma Personal Access Token** ([how to get one](https://www.figma.com/developers/api#access-tokens))
-- An API key from one of: **Google** (Gemini 3), **Anthropic** (Claude 4.6), or **OpenAI** (GPT-5.2)
+- An API key from one of: **Google** (Gemini), **Anthropic** (Claude), or **OpenAI** (GPT-5.2)
 
 ### Quick Start
 
@@ -34,7 +34,7 @@ Browser opens at `http://localhost:5173`. Then:
 1. **Paste your Figma Token** — Personal Access Token from Figma Settings
 2. **Paste a Figma file URL** — e.g. `https://www.figma.com/design/xxxxx/MyFile`
    - To target a specific frame, append `?node-id=1-2` to the URL
-3. **Choose AI model** — Gemini 3 Flash (default) / Gemini 3 Pro / Claude Sonnet / Claude Opus / GPT-5.2
+3. **Choose AI model** — Gemini Flash (default) / Gemini Pro / Claude Sonnet / Claude Opus / GPT-5.2
 4. **Enter your API key** — for the chosen provider
 5. **Click "Analyze File"** — AI analyzes the file structure:
    - **Round 1 (Structure Analysis)**: Classifies file type (app screens / component library / icon library / mixed), identifies real pages vs noise (annotations, notes, dividers), lists nodes to name per page
@@ -61,7 +61,7 @@ The Figma REST API is **read-only** — it cannot rename layers directly. To app
 
 ## Usage B: Figma Plugin (In-Editor)
 
-For direct in-Figma use. The plugin can traverse, name, and apply names all within Figma.
+For direct in-Figma use. The plugin calls AI APIs directly from the browser — **no backend server needed**. You provide your own API key, which is stored locally in Figma's `clientStorage` and never sent to any third-party server.
 
 ### Setup
 
@@ -78,21 +78,12 @@ For direct in-Figma use. The plugin can traverse, name, and apply names all with
 2. Open the plugin (Plugins → Development → Figma Namer)
 3. Enter global context (e.g. "E-commerce checkout flow")
 4. Choose platform (Auto / iOS / Android / Web)
-5. Click "Start Naming"
-6. Review AI-generated names → Apply selected
+5. **Choose AI provider** — Gemini Flash / Gemini Pro / Claude Sonnet / Claude Opus / GPT-5.2
+6. **Enter your API key** — stored locally in Figma, never leaves your device except to the AI API
+7. Click **"Start Naming"**
+8. Review AI-generated names → Apply selected → names are written to your Figma layers
 
-### Backend
-
-The plugin calls a Vercel-hosted backend for AI inference. To self-host:
-
-```bash
-cd backend
-npm install
-# Set env vars: ANTHROPIC_API_KEY and/or OPENAI_API_KEY
-vercel dev
-```
-
-Then update `apiEndpoint` in the plugin config.
+> **No backend required.** The plugin makes direct `fetch` calls to AI provider APIs (Google, Anthropic, OpenAI) from the plugin UI iframe. Anthropic CORS is enabled via the `anthropic-dangerous-direct-browser-access` header. OpenAI may not support browser CORS — if it fails, use Gemini or Claude instead.
 
 ---
 
@@ -110,12 +101,26 @@ Then update `apiEndpoint` in the plugin config.
 ## Architecture
 
 ```
-Round 0: Figma REST API → JSON tree
-Round 1: Tree summary → Gemini Flash (text-only, no images)
-         → file type, pages vs noise, node IDs to name
-Round 2: Per-page batched naming
-         → 3 images per VLM call: page full, component grid, page highlights
-         → siblings share context for consistent naming
+Web Dashboard:
+  Round 0: Figma REST API → JSON tree
+  Round 1: Tree summary → Gemini Flash (text-only, no images)
+           → file type, pages vs noise, node IDs to name
+  Round 2: Per-page batched naming
+           → 3 images per VLM call: page full, component grid, page highlights
+           → siblings share context for consistent naming
+
+Figma Plugin:
+  code.ts (sandbox)              UI iframe
+  ─────────────────              ─────────
+  1. Traverse selection
+  2. Export root screenshot  →   Receive IMAGE_EXPORTED
+  3. Create batches
+  4. Compute SoM labels
+  5. Send SOM_BATCH_READY    →   For each batch:
+     (nodes + labels)              a. renderSoMImage() (Canvas API)
+                                   b. Direct fetch → AI API
+                                   c. Parse response → naming results
+                                 6. All done → preview & apply
 ```
 
 ## Project Structure
@@ -126,41 +131,42 @@ figma-namer/
 │   └── src/
 │       ├── index.ts        # Server entry point (port 3456)
 │       ├── routes/         # API endpoints
-│       │   ├── analyze.ts  # POST /api/analyze (+ AI structure analysis)
-│       │   ├── name.ts     # POST /api/name (page-based + legacy)
-│       │   ├── progress.ts # GET /api/progress/:id (SSE)
-│       │   └── export.ts   # GET /api/export/:id
 │       ├── figma/          # Figma REST API client
-│       │   ├── client.ts   # File & image API
-│       │   ├── traversal.ts # Node traversal & extraction
-│       │   └── tree-summarizer.ts # Condensed tree for LLM
 │       ├── vlm/            # Claude, OpenAI, Gemini clients
-│       ├── som/            # SoM rendering, page highlights, component grid
-│       └── session/        # Session management (page-level tracking)
+│       ├── som/            # SoM rendering, page highlights
+│       └── session/        # Session management
 ├── web/                    # React SPA (Vite)
 │   └── src/
 │       ├── App.tsx         # Main app state machine
-│       ├── components/     # Dashboard, NodeCounter, BatchProgress, NamingPreview
+│       ├── components/     # Dashboard, BatchProgress, NamingPreview
 │       └── hooks/          # useNamingFlow, useSSEProgress
 ├── src/                    # Figma Plugin source
 │   ├── shared/             # Shared types & constants
-│   ├── plugin/             # Plugin main thread
+│   ├── plugin/             # Plugin main thread (code.ts)
+│   │   ├── som/            # SoM Canvas renderer + anti-overlap
+│   │   └── traversal/      # DFS node traversal & filtering
 │   ├── ui/                 # Plugin React UI
-│   └── vlm/                # Client-side VLM wrapper
-├── backend/                # Vercel serverless (for plugin)
+│   │   ├── App.tsx         # Root component
+│   │   ├── components/     # ContextInput, BatchProgress, NamingPreview
+│   │   └── hooks/          # useNamingFlow (orchestrates VLM calls)
+│   └── vlm/                # VLM integration
+│       ├── providers/      # Raw fetch clients (Gemini, Anthropic, OpenAI)
+│       ├── client.ts       # VLMClient with retry logic
+│       ├── prompt.ts       # CESPC prompt engineering
+│       └── parser.ts       # Response parser & validator
 ├── manifest.json           # Figma plugin manifest
 └── package.json
 ```
 
 ## Supported AI Models
 
-| Provider | Model | Best for |
-|----------|-------|----------|
-| **Google** | gemini-3-flash-preview | Fast & cheap (default) |
-| **Google** | gemini-3-pro-preview | Best reasoning |
-| **Anthropic** | claude-sonnet-4-6 | Balanced |
-| **Anthropic** | claude-opus-4-6 | Most capable |
-| **OpenAI** | gpt-5.2 | Best vision |
+| Provider | Model | Plugin ID | Best for |
+|----------|-------|-----------|----------|
+| **Google** | gemini-3-flash-preview | `gemini-flash` | Fast & cheap (default) |
+| **Google** | gemini-3-pro-preview | `gemini-pro` | Best reasoning |
+| **Anthropic** | claude-sonnet-4-6 | `claude-sonnet` | Balanced |
+| **Anthropic** | claude-opus-4-6 | `claude-opus` | Most capable |
+| **OpenAI** | gpt-5.2 | `gpt-5.2` | Best vision (CORS may not work in plugin) |
 
 ## License
 

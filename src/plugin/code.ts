@@ -9,7 +9,7 @@ import type {
   NodeMetadata,
   NamingResult,
   NamerConfig,
-  SessionStatus,
+  SoMLabel,
 } from '../shared/types';
 import { DEFAULT_CONFIG } from '../shared/types';
 import type { PluginToUIMessage, UIToPluginMessage } from '../shared/messages';
@@ -37,6 +37,7 @@ figma.showUI(__html__, { width: UI_WIDTH, height: UI_HEIGHT });
 // ============================================================
 
 figma.ui.onmessage = async (msg: UIToPluginMessage) => {
+  console.log('[code.ts] Received message:', msg.type);
   try {
     switch (msg.type) {
       case 'START_TRAVERSAL':
@@ -52,15 +53,15 @@ figma.ui.onmessage = async (msg: UIToPluginMessage) => {
         break;
 
       case 'APPLY_NAMES':
-        handleApplyNames(msg.results);
+        await handleApplyNames(msg.results);
         break;
 
       case 'APPLY_SINGLE':
-        handleApplySingle(msg.nodeId, msg.newName);
+        await handleApplySingle(msg.nodeId, msg.newName);
         break;
 
       case 'REVERT_NAMES':
-        handleRevertNames(msg.results);
+        await handleRevertNames(msg.results);
         break;
 
       case 'CANCEL_OPERATION':
@@ -70,6 +71,17 @@ figma.ui.onmessage = async (msg: UIToPluginMessage) => {
       case 'UPDATE_CONFIG':
         handleUpdateConfig(msg.config);
         break;
+
+      case 'SAVE_API_KEYS':
+        await figma.clientStorage.setAsync('api_keys', msg.credentials);
+        break;
+
+      case 'LOAD_API_KEYS': {
+        const stored = await figma.clientStorage.getAsync('api_keys');
+        const creds: Record<string, string> = stored ? (stored as Record<string, string>) : {};
+        sendToUI({ type: 'API_KEYS_LOADED', credentials: creds });
+        break;
+      }
 
       default:
         // Exhaustiveness guard: should never happen if types are correct
@@ -120,7 +132,7 @@ async function handleStartTraversal(): Promise<void> {
 // ============================================================
 
 async function handleExportImage(nodeIds: string[], scale: number): Promise<void> {
-  const rootNode = getExportNode(nodeIds);
+  const rootNode = await getExportNode(nodeIds);
   if (!rootNode) {
     sendToUI({ type: 'ERROR', error: 'Could not find the node to export.', code: 'NODE_NOT_FOUND' });
     return;
@@ -233,11 +245,20 @@ async function handleStartNaming(
 
   sendToUI({ type: 'IMAGE_EXPORTED', imageBase64, width: imageWidth, height: imageHeight });
 
-  // -- Step 3: Split into batches --
+  // -- Step 3: Split into batches and compute SoM labels --
   const batches = createBatches(nodes, config.batchSize);
   const totalBatches = batches.length;
 
-  // -- Step 4: Send each batch to the UI --
+  // Compute SoM labels for each batch. Positions are relative to
+  // the root node's bounding box, scaled by exportScale.
+  const rootBox = rootNode.absoluteBoundingBox;
+  const rootX = rootBox ? rootBox.x : 0;
+  const rootY = rootBox ? rootBox.y : 0;
+  const scale = config.exportScale;
+
+  let globalMarkId = 1;
+
+  // -- Step 4: Send each batch to the UI with labels --
   sendToUI({
     type: 'STATUS_UPDATE',
     status: 'rendering_som',
@@ -250,12 +271,36 @@ async function handleStartNaming(
       return;
     }
 
-    sendToUI({ type: 'SOM_BATCH_READY', batchIndex: i, totalBatches });
+    const batchNodes = batches[i];
+    const batchLabels: SoMLabel[] = batchNodes.map((node) => {
+      const markId = globalMarkId++;
+      const box = node.boundingBox;
+      return {
+        markId,
+        nodeId: node.id,
+        labelPosition: {
+          x: (box.x - rootX) * scale,
+          y: (box.y - rootY) * scale,
+        },
+        highlightBox: {
+          x: (box.x - rootX) * scale,
+          y: (box.y - rootY) * scale,
+          width: box.width * scale,
+          height: box.height * scale,
+        },
+        originalName: node.originalName,
+      };
+    });
 
-    // Yield control so the UI can process the batch. The UI will
-    // perform SoM rendering, call the VLM API, and send back
-    // NAMING_RESULTS for this batch. We do not await that here;
-    // the UI drives the batch-by-batch conversation.
+    sendToUI({
+      type: 'SOM_BATCH_READY',
+      batchIndex: i,
+      totalBatches,
+      batchNodes,
+      batchLabels,
+    });
+
+    // Yield control so the UI can process the batch.
     await yieldToMain();
   }
 }
@@ -264,7 +309,8 @@ async function handleStartNaming(
 // Handler: APPLY_NAMES
 // ============================================================
 
-function handleApplyNames(results: NamingResult[]): void {
+async function handleApplyNames(results: NamingResult[]): Promise<void> {
+  console.log('[code.ts] handleApplyNames called with', results.length, 'results');
   sendToUI({ type: 'STATUS_UPDATE', status: 'applying', message: 'Applying names...' });
 
   let appliedCount = 0;
@@ -272,24 +318,26 @@ function handleApplyNames(results: NamingResult[]): void {
 
   for (const result of results) {
     try {
-      const node = figma.getNodeById(result.nodeId);
+      const node = await figma.getNodeByIdAsync(result.nodeId);
       if (!node) {
+        console.log('[code.ts] Node NOT FOUND:', result.nodeId);
         failedCount++;
         continue;
       }
 
-      // Only SceneNodes have a writable `name` property
       if ('name' in node) {
         (node as SceneNode).name = result.suggestedName;
         appliedCount++;
       } else {
         failedCount++;
       }
-    } catch {
+    } catch (_e) {
+      console.log('[code.ts] Error renaming node:', result.nodeId, _e);
       failedCount++;
     }
   }
 
+  console.log('[code.ts] Apply complete. Applied:', appliedCount, 'Failed:', failedCount);
   sendToUI({ type: 'APPLY_COMPLETE', appliedCount, failedCount });
   sendToUI({ type: 'STATUS_UPDATE', status: 'completed', message: 'Names applied.' });
 
@@ -303,9 +351,9 @@ function handleApplyNames(results: NamingResult[]): void {
 // Handler: APPLY_SINGLE
 // ============================================================
 
-function handleApplySingle(nodeId: string, newName: string): void {
+async function handleApplySingle(nodeId: string, newName: string): Promise<void> {
   try {
-    const node = figma.getNodeById(nodeId);
+    const node = await figma.getNodeByIdAsync(nodeId);
     if (!node || !('name' in node)) {
       sendToUI({ type: 'ERROR', error: `Node ${nodeId} not found or cannot be renamed.`, code: 'NODE_NOT_FOUND' });
       return;
@@ -324,7 +372,7 @@ function handleApplySingle(nodeId: string, newName: string): void {
 // Handler: REVERT_NAMES
 // ============================================================
 
-function handleRevertNames(results: NamingResult[]): void {
+async function handleRevertNames(results: NamingResult[]): Promise<void> {
   sendToUI({ type: 'STATUS_UPDATE', status: 'applying', message: 'Reverting names...' });
 
   let appliedCount = 0;
@@ -332,7 +380,7 @@ function handleRevertNames(results: NamingResult[]): void {
 
   for (const result of results) {
     try {
-      const node = figma.getNodeById(result.nodeId);
+      const node = await figma.getNodeByIdAsync(result.nodeId);
       if (!node || !('name' in node)) {
         failedCount++;
         continue;
@@ -340,7 +388,7 @@ function handleRevertNames(results: NamingResult[]): void {
 
       (node as SceneNode).name = result.originalName;
       appliedCount++;
-    } catch {
+    } catch (_e) {
       failedCount++;
     }
   }
@@ -429,14 +477,14 @@ function getSelectionRoot(): SceneNode | null {
  * If multiple IDs are provided, attempts to find their common
  * parent. Falls back to the first valid node.
  */
-function getExportNode(nodeIds: string[]): SceneNode | null {
+async function getExportNode(nodeIds: string[]): Promise<SceneNode | null> {
   if (nodeIds.length === 0) {
     return getSelectionRoot();
   }
 
   const nodes: SceneNode[] = [];
   for (const id of nodeIds) {
-    const node = figma.getNodeById(id);
+    const node = await figma.getNodeByIdAsync(id);
     if (node && 'absoluteBoundingBox' in node) {
       nodes.push(node as SceneNode);
     }

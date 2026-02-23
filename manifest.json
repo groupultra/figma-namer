@@ -6,7 +6,8 @@
   "ui": "dist/ui.html",
   "editorType": ["figma"],
   "networkAccess": {
-    "allowedDomains": ["*"]
+    "allowedDomains": ["*"],
+    "reasoning": "Direct API calls to AI providers (Google Gemini, Anthropic Claude, OpenAI) chosen by user at runtime."
   },
   "documentAccess": "dynamic-page",
   "permissions": ["currentuser"]

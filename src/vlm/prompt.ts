@@ -10,6 +10,8 @@
 export interface NodeSupplement {
   /** SoM numeric mark ID displayed on the annotated image */
   markId: number;
+  /** The designer's original layer name in Figma (e.g. "login_btn", "Frame 243") */
+  originalName: string;
   /** Actual text content extracted from the Figma node (null if non-text) */
   textContent: string | null;
   /** Design variable / token names bound to this node */
@@ -142,6 +144,13 @@ inside that element. Do NOT infer or hallucinate text from the image that contra
 provided textContent. If the textContent is null, the element does not contain readable text.
 Similarly, use "boundVariables" and "componentProperties" to inform your naming (e.g. a
 variable named "Colors/Danger/Default" suggests an error or danger state).
+
+Each node also includes an "originalName" field — the designer's current layer name in Figma.
+This can be a valuable context signal:
+- Meaningful names like "login_btn", "nav-header", or "购物车" reveal the designer's intent.
+- Auto-generated names like "Frame 243", "Group 17", or "Rectangle 5" carry no semantic value — ignore them.
+- Partially descriptive names like "btn_primary" or "header-v2" hint at purpose but need proper CESPC formatting.
+Use the originalName as a contextual clue when it contains semantic information, but always produce a properly formatted CESPC name regardless.
 </anti_hallucination_notice>
 
 <output_instruction>
@@ -184,6 +193,9 @@ Rules:
 export function buildUserPrompt(nodeSupplements: NodeSupplement[]): string {
   const nodeDescriptions = nodeSupplements.map((node) => {
     const parts: string[] = [`<node markId="${node.markId}">`];
+
+    // Original layer name from the designer
+    parts.push(`  <originalName>${escapeXml(node.originalName)}</originalName>`);
 
     // Text content (ground truth to prevent OCR hallucination)
     if (node.textContent !== null && node.textContent.length > 0) {

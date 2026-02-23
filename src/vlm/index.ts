@@ -11,6 +11,10 @@ export type { NodeSupplement } from './prompt';
 export { VLMClient, VLMClientError } from './client';
 export type { VLMClientConfig } from './client';
 
+// ---- Provider dispatcher ----
+export { callProvider, PROVIDER_KEY_FAMILY } from './providers';
+export type { VLMRawResult } from './providers';
+
 // ---- Response parser & validator ----
 export { parseVLMResponse, validateNaming } from './parser';
 export type { ParsedNaming, ValidationResult } from './parser';

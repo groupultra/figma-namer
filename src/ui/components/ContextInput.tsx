@@ -1,19 +1,45 @@
 // ============================================================
 // Figma Namer - ContextInput Component
-// Idle screen: global context input, platform picker, start button
+// Idle screen: global context input, platform picker, AI provider,
+// API key input, and start button
 // ============================================================
 
 import React, { useState } from 'react';
 import type { NamerConfig } from '../../shared/types';
 import { DEFAULT_CONFIG } from '../../shared/types';
+import { PROVIDER_KEY_FAMILY } from '../../vlm/providers';
 
 interface ContextInputProps {
-  onStart: (globalContext: string, platform: string, configOverrides?: Partial<NamerConfig>) => void;
+  onStart: (globalContext: string, platform: string, vlmProvider: string, apiKey: string, configOverrides?: Partial<NamerConfig>) => void;
+  apiKeys: Record<string, string>;
+  vlmProvider: string;
+  onSaveApiKeys: (credentials: Record<string, string>) => void;
+  onSetVlmProvider: (provider: string) => void;
 }
 
 const PLATFORMS = ['Auto', 'iOS', 'Android', 'Web'] as const;
 
-export const ContextInput: React.FC<ContextInputProps> = ({ onStart }) => {
+const PROVIDERS = [
+  { id: 'gemini-flash', label: 'Gemini Flash' },
+  { id: 'gemini-pro', label: 'Gemini Pro' },
+  { id: 'claude-sonnet', label: 'Claude Sonnet' },
+  { id: 'claude-opus', label: 'Claude Opus' },
+  { id: 'gpt-5.2', label: 'GPT-5.2' },
+] as const;
+
+const KEY_FAMILY_LABELS: Record<string, string> = {
+  google: 'Google AI',
+  anthropic: 'Anthropic',
+  openai: 'OpenAI',
+};
+
+export const ContextInput: React.FC<ContextInputProps> = ({
+  onStart,
+  apiKeys,
+  vlmProvider,
+  onSaveApiKeys,
+  onSetVlmProvider,
+}) => {
   const [globalContext, setGlobalContext] = useState('');
   const [platform, setPlatform] = useState<string>('Auto');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -22,6 +48,14 @@ export const ContextInput: React.FC<ContextInputProps> = ({ onStart }) => {
   const [includeLocked, setIncludeLocked] = useState(DEFAULT_CONFIG.includeLocked);
   const [includeInvisible, setIncludeInvisible] = useState(DEFAULT_CONFIG.includeInvisible);
 
+  const keyFamily = PROVIDER_KEY_FAMILY[vlmProvider] ?? 'google';
+  const currentApiKey = apiKeys[keyFamily] ?? '';
+
+  const handleApiKeyChange = (value: string) => {
+    const updated = { ...apiKeys, [keyFamily]: value };
+    onSaveApiKeys(updated);
+  };
+
   const handleStart = () => {
     const overrides: Partial<NamerConfig> = {};
     if (batchSize !== DEFAULT_CONFIG.batchSize) overrides.batchSize = batchSize;
@@ -29,8 +63,16 @@ export const ContextInput: React.FC<ContextInputProps> = ({ onStart }) => {
     if (includeLocked !== DEFAULT_CONFIG.includeLocked) overrides.includeLocked = includeLocked;
     if (includeInvisible !== DEFAULT_CONFIG.includeInvisible) overrides.includeInvisible = includeInvisible;
 
-    onStart(globalContext.trim(), platform, Object.keys(overrides).length > 0 ? overrides : undefined);
+    onStart(
+      globalContext.trim(),
+      platform,
+      vlmProvider,
+      currentApiKey,
+      Object.keys(overrides).length > 0 ? overrides : undefined,
+    );
   };
+
+  const isStartDisabled = !currentApiKey.trim();
 
   return (
     <div style={styles.container}>
@@ -72,13 +114,13 @@ export const ContextInput: React.FC<ContextInputProps> = ({ onStart }) => {
       {/* Platform Select */}
       <div style={styles.section}>
         <label style={styles.label}>Platform</label>
-        <div style={styles.platformRow}>
+        <div style={styles.chipRow}>
           {PLATFORMS.map((p) => (
             <button
               key={p}
               style={{
-                ...styles.platformChip,
-                ...(platform === p ? styles.platformChipActive : {}),
+                ...styles.chip,
+                ...(platform === p ? styles.chipActive : {}),
               }}
               onClick={() => setPlatform(p)}
             >
@@ -86,6 +128,40 @@ export const ContextInput: React.FC<ContextInputProps> = ({ onStart }) => {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* AI Provider Select */}
+      <div style={styles.section}>
+        <label style={styles.label}>AI Provider</label>
+        <div style={styles.chipRow}>
+          {PROVIDERS.map((p) => (
+            <button
+              key={p.id}
+              style={{
+                ...styles.chip,
+                ...(vlmProvider === p.id ? styles.chipActive : {}),
+              }}
+              onClick={() => onSetVlmProvider(p.id)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* API Key Input */}
+      <div style={styles.section}>
+        <label style={styles.label}>{KEY_FAMILY_LABELS[keyFamily] ?? keyFamily} API Key</label>
+        <input
+          type="password"
+          style={styles.apiKeyInput}
+          placeholder={`Enter your ${KEY_FAMILY_LABELS[keyFamily] ?? keyFamily} API key`}
+          value={currentApiKey}
+          onChange={(e) => handleApiKeyChange(e.target.value)}
+        />
+        <span style={styles.hint}>
+          Stored locally in Figma. Never sent to any server.
+        </span>
       </div>
 
       {/* Advanced Config Toggle */}
@@ -149,10 +225,14 @@ export const ContextInput: React.FC<ContextInputProps> = ({ onStart }) => {
       <div style={styles.footer}>
         <button
           className="btn-primary"
-          style={styles.startButton}
+          style={{
+            ...styles.startButton,
+            ...(isStartDisabled ? styles.startButtonDisabled : {}),
+          }}
           onClick={handleStart}
+          disabled={isStartDisabled}
         >
-          Start Naming
+          {isStartDisabled ? 'Enter API Key to Start' : 'Start Naming'}
         </button>
       </div>
     </div>
@@ -167,6 +247,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     height: '100%',
     padding: '0 20px',
+    overflowY: 'auto',
   },
   header: {
     textAlign: 'center',
@@ -235,13 +316,13 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--color-text-secondary)',
     marginTop: 4,
   },
-  platformRow: {
+  chipRow: {
     display: 'flex',
     gap: 6,
+    flexWrap: 'wrap' as const,
   },
-  platformChip: {
-    flex: 1,
-    padding: '6px 0',
+  chip: {
+    padding: '6px 10px',
     borderRadius: 'var(--radius-sm)',
     border: '1px solid var(--color-border)',
     background: 'var(--color-bg)',
@@ -252,10 +333,20 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     transition: 'all 0.15s ease',
   },
-  platformChipActive: {
+  chipActive: {
     background: 'var(--color-primary)',
     borderColor: 'var(--color-primary)',
     color: '#fff',
+  },
+  apiKeyInput: {
+    width: '100%',
+    padding: '8px 10px',
+    fontSize: 11,
+    border: '1px solid var(--color-border)',
+    borderRadius: 'var(--radius-sm)',
+    background: 'var(--color-bg)',
+    color: 'var(--color-text)',
+    boxSizing: 'border-box' as const,
   },
   advancedToggle: {
     display: 'flex',
@@ -318,5 +409,9 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '10px 0',
     fontSize: 13,
     fontWeight: 600,
+  },
+  startButtonDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
   },
 };

@@ -7,6 +7,7 @@ module.exports = (env, argv) => {
 
   return [
     // Plugin main thread (sandbox code.ts -> code.js)
+    // Figma's sandbox uses an older JS engine — target ES2017 via tsconfig.plugin.json
     {
       name: 'plugin',
       entry: './src/plugin/code.ts',
@@ -18,7 +19,12 @@ module.exports = (env, argv) => {
         rules: [
           {
             test: /\.tsx?$/,
-            use: 'ts-loader',
+            use: {
+              loader: 'ts-loader',
+              options: {
+                configFile: 'tsconfig.plugin.json',
+              },
+            },
             exclude: /node_modules/,
           },
         ],

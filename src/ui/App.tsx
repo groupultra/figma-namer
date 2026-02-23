@@ -18,17 +18,29 @@ export const App: React.FC = () => {
     traversalProgress,
     currentBatchImage,
     applyStats,
+    apiKeys,
+    vlmProvider,
     startNaming,
     applyNames,
     cancelOperation,
     reset,
+    saveApiKeys,
+    setVlmProvider,
   } = useNamingFlow();
 
   // ---- Render based on SessionStatus ----
 
   // Idle: show start screen
   if (status === 'idle') {
-    return <ContextInput onStart={startNaming} />;
+    return (
+      <ContextInput
+        onStart={startNaming}
+        apiKeys={apiKeys}
+        vlmProvider={vlmProvider}
+        onSaveApiKeys={saveApiKeys}
+        onSetVlmProvider={setVlmProvider}
+      />
+    );
   }
 
   // Processing: traversal, rendering SoM, calling VLM

@@ -310,6 +310,7 @@ async function processPageBatches(
           const systemPrompt = buildSystemPromptWithPageContext(globalContext, platform);
           const supplements: NodeSupplement[] = [{
             markId,
+            originalName: node.originalName,
             textContent: node.textContent,
             boundVariables: node.boundVariables,
             componentProperties: node.componentProperties,
@@ -494,6 +495,7 @@ async function processPageBatches(
 
       const supplements: NodeSupplement[] = batch.map((node, i) => ({
         markId: batchMarkStart + i,
+        originalName: node.originalName,
         textContent: node.textContent,
         boundVariables: node.boundVariables,
         componentProperties: node.componentProperties,
@@ -739,6 +741,7 @@ async function processLegacyBatches(
     const systemPrompt = buildSystemPrompt(globalContext, platform);
     const supplements: NodeSupplement[] = batch.map((node, i) => ({
       markId: batchIdx * batchSize + i + 1,
+      originalName: node.originalName,
       textContent: node.textContent,
       boundVariables: node.boundVariables,
       componentProperties: node.componentProperties,
