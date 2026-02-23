@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Figma Namer - 完整技术文档</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-card: #161b22;
+    --bg-code: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-secondary: #8b949e;
+    --accent: #58a6ff;
+    --accent-hover: #79c0ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --orange: #db6d28;
+    --purple: #bc8cff;
+    --pink: #f778ba;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+
+  /* ---- Layout ---- */
+  .page-wrapper { display: flex; min-height: 100vh; }
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 280px;
+    height: 100vh;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 20px 0;
+    z-index: 100;
+  }
+  .sidebar-logo {
+    padding: 0 20px 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .sidebar-logo h2 { font-size: 18px; color: var(--accent); }
+  .sidebar-logo p { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .sidebar nav a {
+    display: block;
+    padding: 6px 20px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    transition: all .15s;
+  }
+  .sidebar nav a:hover { color: var(--text); background: rgba(88,166,255,.08); }
+  .sidebar nav a.active { color: var(--accent); border-left: 2px solid var(--accent); background: rgba(88,166,255,.06); }
+  .sidebar nav .nav-group { padding: 12px 20px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-secondary); font-weight: 600; }
+
+  .main { margin-left: 280px; flex: 1; max-width: 900px; padding: 40px 48px 80px; }
+
+  /* ---- Typography ---- */
+  h1 { font-size: 32px; margin-bottom: 8px; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+  h2 { font-size: 24px; margin: 40px 0 16px; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  h3 { font-size: 18px; margin: 28px 0 12px; color: var(--text); }
+  h4 { font-size: 15px; margin: 20px 0 8px; color: var(--accent); }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 8px 0 16px 24px; }
+  li { margin-bottom: 4px; }
+  strong { color: var(--text); }
+  em { color: var(--text-secondary); font-style: italic; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; color: var(--accent-hover); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  /* ---- Code ---- */
+  code {
+    background: var(--bg-code);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 13px;
+    color: var(--pink);
+  }
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; color: var(--text); font-size: 13px; }
+
+  /* ---- Tables ---- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 20px;
+    font-size: 13px;
+  }
+  th, td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--bg-code); font-weight: 600; color: var(--text); white-space: nowrap; }
+  tr:nth-child(even) { background: rgba(22,27,34,.5); }
+
+  /* ---- Cards ---- */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 16px 0;
+  }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 16px 0; }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    text-align: center;
+  }
+  .stat-card .num { font-size: 32px; font-weight: 700; color: var(--accent); }
+  .stat-card .label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+  /* ---- Badges ---- */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .badge-green { background: rgba(63,185,80,.15); color: var(--green); }
+  .badge-red { background: rgba(248,81,73,.15); color: var(--red); }
+  .badge-yellow { background: rgba(210,153,34,.15); color: var(--yellow); }
+  .badge-blue { background: rgba(88,166,255,.15); color: var(--accent); }
+
+  /* ---- Section divider ---- */
+  .section-divider {
+    margin: 60px 0 40px;
+    padding: 16px 0;
+    border-top: 3px solid var(--accent);
+  }
+  .section-divider h1 { border-bottom: none; padding-bottom: 0; }
+
+  /* ---- Steps ---- */
+  .step {
+    display: flex;
+    gap: 16px;
+    margin: 16px 0;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 36px; height: 36px;
+    background: var(--accent);
+    color: var(--bg);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .step-content h4 { margin-top: 4px; color: var(--text); }
+  .step-content p { color: var(--text-secondary); margin-top: 4px; font-size: 14px; }
+
+  /* ---- Severity colors ---- */
+  .severity-critical { color: var(--red); font-weight: 700; }
+  .severity-high { color: var(--orange); font-weight: 600; }
+  .severity-medium { color: var(--yellow); }
+  .severity-low { color: var(--text-secondary); }
+
+  /* ---- Scroll smooth ---- */
+  html { scroll-behavior: smooth; }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 24px 20px; }
+  }
+
+  /* ---- ASCII art box ---- */
+  .ascii-box {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-family: 'SF Mono', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 12px 0 20px;
+    color: var(--text-secondary);
+  }
+</style>
+</head>
+<body>
+<div class="page-wrapper">
+
+<!-- ============ SIDEBAR ============ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h2>Figma Namer</h2>
+    <p>AI Semantic Layer Naming</p>
+  </div>
+  <nav>
+    <div class="nav-group">使用指南</div>
+    <a href="#usage-guide">产品使用说明</a>
+    <a href="#quick-start">快速开始</a>
+    <a href="#user-flow">用户操作流程</a>
+    <a href="#config">配置与部署</a>
+
+    <div class="nav-group">项目总览</div>
+    <a href="#overview">项目总览</a>
+    <a href="#architecture">技术架构</a>
+    <a href="#infrastructure">基础设施</a>
+
+    <div class="nav-group">核心模块</div>
+    <a href="#module-a">A: 节点遍历</a>
+    <a href="#module-b">B: SoM 渲染引擎</a>
+    <a href="#module-c">C: VLM 集成</a>
+    <a href="#module-d">D: 插件 UI</a>
+    <a href="#module-e">E: 后端 API</a>
+    <a href="#module-f">F: 编排器</a>
+
+    <div class="nav-group">质量保障</div>
+    <a href="#testing">测试报告</a>
+    <a href="#review">代码审查</a>
+    <a href="#security">安全审计</a>
+  </nav>
+</aside>
+
+<!-- ============ MAIN CONTENT ============ -->
+<main class="main">
+
+<!-- ======================================================== -->
+<!-- USAGE GUIDE -->
+<!-- ======================================================== -->
+<div id="usage-guide">
+<h1>Figma Namer 产品使用说明</h1>
+<p style="font-size:17px;color:var(--text-secondary);margin-bottom:24px;">
+  <strong>Figma Namer</strong> 是一款 AI 驱动的 Figma 插件，利用多模态大模型（Claude / GPT-4o）为设计稿图层自动生成语义化名称。<br>
+  它是 Figma MCP 工作流中的"缺失预处理器"——通过高质量图层命名，从根本上提升 Design-to-Code 的自动化效率。
+</p>
+
+<div class="card-grid">
+  <div class="stat-card">
+    <div class="num">6</div>
+    <div class="label">核心模块</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">293</div>
+    <div class="label">测试用例 (全部通过)</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">2</div>
+    <div class="label">VLM 供应商 (Claude + GPT-4o)</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">CESPC</div>
+    <div class="label">命名框架</div>
+  </div>
+</div>
+
+<h3>核心特性</h3>
+<ul>
+  <li><strong>Set-of-Mark 视觉标注</strong> — 在截图上叠加带编号的高亮框，让 VLM 精确识别每个 UI 元素</li>
+  <li><strong>CESPC 命名框架</strong> — Context / Element / State / Platform / Modifier 五维语义命名</li>
+  <li><strong>智能过滤</strong> — 自动跳过装饰性矢量、空容器、锁定/隐藏图层，只命名有业务语义的节点</li>
+  <li><strong>批处理</strong> — 大量节点自动分批，每批独立调用 VLM，避免单次请求过大</li>
+  <li><strong>人工审阅</strong> — AI 命名后提供预览界面，支持搜索、筛选、逐个编辑、一键应用/回滚</li>
+  <li><strong>置信度可视化</strong> — 每个命名附带 AI 置信度评分，颜色编码一目了然</li>
+  <li><strong>多平台支持</strong> — 针对 iOS (HIG)、Android (Material)、Web 生成平台特定的命名约定</li>
+</ul>
+</div>
+
+<!-- ---- Quick Start ---- -->
+<div id="quick-start">
+<h2>快速开始</h2>
+
+<h3>前置要求</h3>
+<ul>
+  <li>Node.js 18+</li>
+  <li>Figma Desktop App</li>
+  <li>Claude API Key 或 OpenAI API Key</li>
+</ul>
+
+<h3>本地开发</h3>
+<pre><code># 1. 克隆仓库
+git clone &lt;repo-url&gt;
+cd figma-namer
+
+# 2. 安装依赖
+npm install
+cd backend &amp;&amp; npm install &amp;&amp; cd ..
+
+# 3. 配置环境变量 (后端)
+# 在 backend/ 目录下创建 .env 文件:
+#   ANTHROPIC_API_KEY=sk-ant-...
+#   OPENAI_API_KEY=sk-...
+
+# 4. 启动开发构建
+npm run dev
+
+# 5. 在 Figma 中加载插件
+# Plugins → Development → Import plugin from manifest
+# 选择项目根目录下的 manifest.json
+
+# 6. 运行测试
+npm test
+</code></pre>
+
+<h3>部署后端 (Vercel)</h3>
+<pre><code># 1. 安装 Vercel CLI
+npm i -g vercel
+
+# 2. 部署
+cd backend
+vercel
+
+# 3. 配置环境变量
+vercel env add ANTHROPIC_API_KEY
+vercel env add OPENAI_API_KEY
+</code></pre>
+</div>
+
+<!-- ---- User Flow ---- -->
+<div id="user-flow">
+<h2>用户操作流程</h2>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-content">
+    <h4>选中设计稿 &amp; 启动插件</h4>
+    <p>在 Figma 中选中一个 Frame、Component 或 Page，通过 Plugins 菜单启动 "Figma Namer"。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-content">
+    <h4>输入全局上下文</h4>
+    <p>描述当前界面的业务场景（如"医疗 SaaS 系统的 iPad 端门诊大屏"），选择目标平台（Auto / iOS / Android / Web），可选调整高级设置（批大小、导出缩放等）。点击 <strong>Start Naming</strong>。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-content">
+    <h4>等待 AI 处理</h4>
+    <p>插件自动执行：遍历图层树 → 导出截图 → 绘制 SoM 标记 → 调用 VLM API。进度条实时显示批次和阶段。可随时点击 <strong>Cancel</strong> 取消。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">4</div>
+  <div class="step-content">
+    <h4>预览 &amp; 编辑命名</h4>
+    <p>AI 返回结果后进入预览面板。每行显示原始名→建议名+置信度。可以：全选/反选、搜索过滤、点击编辑按钮修改个别名称。确认后点击 <strong>Apply Selected</strong>。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">5</div>
+  <div class="step-content">
+    <h4>完成</h4>
+    <p>选中的图层被自动重命名。显示统计（成功/失败数量、耗时）。可点击 <strong>Start New Session</strong> 继续命名其他区域。如果对结果不满意，支持一键回滚到原始名称。</p>
+  </div>
+</div>
+
+<h3>界面预览</h3>
+<div class="ascii-box">┌──────────────────────────────────┐    ┌──────────────────────────────────┐
+│  Figma Namer                     │    │  Figma Namer - Preview           │
+│                                   │    │                                   │
+│  Global Context:                  │    │  [Select All] [Deselect] 23/25   │
+│  ┌─────────────────────────────┐ │    │  ┌──────────────────────────────┐│
+│  │ 医疗SaaS iPad门诊大屏      │ │    │  │ ☑ #1 Frame 123               ││
+│  └─────────────────────────────┘ │    │  │   → Login Button - Primary   ││
+│                                   │    │  │──────────────────────────────││
+│  Platform: [Auto][iOS][And][Web] │    │  │ ☑ #2 Rectangle 45            ││
+│                                   │    │  │   → Email InputField - Error ││
+│  [▶ Start Naming]                │    │  │──────────────────────────────││
+│                                   │    │  │ ☐ #3 Group 8                 ││
+│  ⚙ Advanced Settings             │    │  │   → App Logo - Default       ││
+│  Batch Size: [15]                │    │  └──────────────────────────────┘│
+│  Export Scale: [2x]              │    │                                   │
+└──────────────────────────────────┘    │  [Cancel]  [✅ Apply 23 Names]   │
+                                        └──────────────────────────────────┘</div>
+</div>
+
+<!-- ---- Config ---- -->
+<div id="config">
+<h2>配置与部署</h2>
+
+<h3>插件配置项</h3>
+<table>
+  <tr><th>配置</th><th>默认值</th><th>说明</th></tr>
+  <tr><td><code>batchSize</code></td><td>15</td><td>每批发送给 VLM 的节点数（1-30）</td></tr>
+  <tr><td><code>exportScale</code></td><td>2</td><td>截图导出缩放倍数（1x / 2x / 3x）</td></tr>
+  <tr><td><code>vlmProvider</code></td><td>claude</td><td>VLM 供应商：<code>claude</code> 或 <code>openai</code></td></tr>
+  <tr><td><code>includeLocked</code></td><td>false</td><td>是否包含锁定的图层</td></tr>
+  <tr><td><code>includeInvisible</code></td><td>false</td><td>是否包含隐藏的图层</td></tr>
+  <tr><td><code>minNodeArea</code></td><td>4</td><td>最小节点面积（px），低于此值的被过滤</td></tr>
+</table>
+
+<h3>后端环境变量</h3>
+<table>
+  <tr><th>变量名</th><th>必填</th><th>说明</th></tr>
+  <tr><td><code>ANTHROPIC_API_KEY</code></td><td>使用 Claude 时必填</td><td>Anthropic API 密钥</td></tr>
+  <tr><td><code>OPENAI_API_KEY</code></td><td>使用 OpenAI 时必填</td><td>OpenAI API 密钥</td></tr>
+</table>
+
+<h3>命名框架: CESPC</h3>
+<table>
+  <tr><th>维度</th><th>含义</th><th>示例</th></tr>
+  <tr><td><strong>C</strong>ontext</td><td>业务语境</td><td>Login, Checkout, UserProfile</td></tr>
+  <tr><td><strong>E</strong>lement</td><td>UI 元素类型</td><td>Button, TextField, Card, Avatar</td></tr>
+  <tr><td><strong>S</strong>tate</td><td>交互状态</td><td>Disabled, Hover, Error, Active</td></tr>
+  <tr><td><strong>P</strong>latform</td><td>平台约束（可选）</td><td>iOS, Android, Web</td></tr>
+  <tr><td><strong>M</strong>odifier</td><td>修饰补充（可选）</td><td>Primary, Large, Outlined</td></tr>
+</table>
+<p>示例输出：<code>Login Button - Disabled - iOS - Primary</code></p>
+
+<h3>边界情况</h3>
+<ul>
+  <li><strong>未选中任何元素</strong> — 提示用户先选中 Frame</li>
+  <li><strong>选中过多元素 (&gt;5000)</strong> — 自动截断，仅处理前 5000 个</li>
+  <li><strong>网络错误</strong> — 自动重试 3 次（指数退避），最终失败显示重试按钮</li>
+  <li><strong>VLM 返回异常</strong> — 降级为部分结果展示，空名称的条目标记为低置信度</li>
+</ul>
+</div>
+
+<!-- ======================================================== -->
+<!-- PROJECT OVERVIEW -->
+<!-- ======================================================== -->
+<div class="section-divider" id="overview">
+<h1>项目总览</h1>
+</div>
+
+<p><strong>Figma Namer</strong> — AI-Powered Semantic Layer Naming Tool<br>
+<em>"The Missing Pre-processor for Figma MCP"</em></p>
+
+<p>利用多模态大模型（VLM）与 Set-of-Mark (SoM) 视觉提示词技术，自动为 Figma 设计稿的所有图层生成高精度语义化命名，从根本上解决 Design-to-Code 流程中的"上下文断层"问题。</p>
+
+<div id="architecture">
+<h2>技术架构</h2>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                    Figma Desktop Client                      │
+│  ┌──────────────────────┐  ┌──────────────────────────────┐ │
+│  │  Plugin Main Thread   │  │    Plugin UI (iframe)         │ │
+│  │  (Figma Sandbox)      │  │    (React + Canvas)           │ │
+│  │                        │  │                                │ │
+│  │  ┌──────────────────┐ │  │  ┌──────────────────────────┐ │ │
+│  │  │ Node Traversal   │ │  │  │ SoM Canvas Renderer      │ │ │
+│  │  │ (Module A)       │ │  │  │ (Module B)               │ │ │
+│  │  └──────────────────┘ │  │  │ + Anti-overlap Algorithm  │ │ │
+│  │                        │  │  └──────────────────────────┘ │ │
+│  │  ┌──────────────────┐ │  │                                │ │
+│  │  │ Orchestrator     │ │  │  ┌──────────────────────────┐ │ │
+│  │  │ (Module F)       │◄├──┤► │ VLM Client (Module C)    │ │ │
+│  │  │ code.ts          │ │  │  └──────────┬───────────────┘ │ │
+│  │  └──────────────────┘ │  │             │                  │ │
+│  │                        │  │  ┌──────────┴───────────────┐ │ │
+│  │  ┌──────────────────┐ │  │  │ React UI (Module D)      │ │ │
+│  │  │ Name Rewriter    │ │  │  │ Preview + Confirm Panel  │ │ │
+│  │  └──────────────────┘ │  │  └──────────────────────────┘ │ │
+│  └──────────────────────┘  └──────────────────────────────┘ │
+│          ▲ postMessage ▼                    │ HTTP           │
+└─────────────────────────────────────────────┼───────────────┘
+                                               │
+                                    ┌──────────▼──────────┐
+                                    │  Vercel Edge API     │
+                                    │  (Module E)          │
+                                    │  /api/naming         │
+                                    └──────────┬──────────┘
+                                               │
+                              ┌────────────────┼────────────────┐
+                              ▼                                  ▼
+                    ┌──────────────┐                   ┌──────────────┐
+                    │ Claude API   │                   │ OpenAI API   │
+                    │ (Sonnet 4)   │                   │ (GPT-4o)     │
+                    └──────────────┘                   └──────────────┘</code></pre>
+</div>
+
+<h2>模块分解</h2>
+<table>
+  <tr><th>模块</th><th>位置</th><th>运行环境</th><th>职责</th></tr>
+  <tr><td>Module A</td><td><code>src/plugin/traversal/</code></td><td>Figma Sandbox</td><td>节点 DFS 遍历、噪点过滤、元数据提取</td></tr>
+  <tr><td>Module B</td><td><code>src/plugin/som/</code></td><td>UI Iframe (Canvas)</td><td>SoM 视觉标记渲染、模拟退火防重叠</td></tr>
+  <tr><td>Module C</td><td><code>src/vlm/</code></td><td>UI Iframe</td><td>VLM API 客户端、CESPC Prompt 工程、JSON 解析</td></tr>
+  <tr><td>Module D</td><td><code>src/ui/</code></td><td>UI Iframe (React)</td><td>全局上下文输入、命名预览/确认、批处理进度</td></tr>
+  <tr><td>Module E</td><td><code>backend/</code></td><td>Vercel Edge</td><td>API 代理、API Key 安全、Claude/OpenAI 调用</td></tr>
+  <tr><td>Module F</td><td><code>src/plugin/code.ts</code></td><td>Figma Sandbox</td><td>全流程编排、消息路由、回写与清理</td></tr>
+</table>
+
+<h2>核心数据流</h2>
+<ol>
+  <li>用户选中 Frame → Module A 遍历收集元数据</li>
+  <li>Module F 导出根节点截图 → 发送给 UI</li>
+  <li>Module B 在 Canvas 上绘制 SoM 标记（红框+数字ID）</li>
+  <li>Module C 组装多模态 Prompt → Module E 代理调用 VLM</li>
+  <li>VLM 返回 CESPC 命名 JSON → Module C 解析验证</li>
+  <li>Module D 展示预览列表 → 用户确认</li>
+  <li>Module F 执行 <code>node.name = newName</code> 回写</li>
+</ol>
+
+<h2>开发进度</h2>
+<table>
+  <tr><th>Phase</th><th>状态</th><th>说明</th></tr>
+  <tr><td>Phase 0: 基础设施</td><td><span class="badge badge-green">✅ 完成</span></td><td>项目骨架、共享类型、构建系统</td></tr>
+  <tr><td>Phase 1: 核心模块 (A-F)</td><td><span class="badge badge-green">✅ 完成</span></td><td>6 个模块全部实现</td></tr>
+  <tr><td>Phase 2: 测试</td><td><span class="badge badge-green">✅ 完成</span></td><td>293 个测试全部通过（240 单元 + 53 集成）</td></tr>
+  <tr><td>Phase 3: 审查</td><td><span class="badge badge-green">✅ 完成</span></td><td>代码审查 + 安全审计报告已生成</td></tr>
+  <tr><td>Phase 4: 文档</td><td><span class="badge badge-green">✅ 完成</span></td><td>12 份模块报告 + UX 文档</td></tr>
+</table>
+
+<!-- ---- Infrastructure ---- -->
+<div id="infrastructure">
+<h2>Phase 0: 基础设施</h2>
+<p>Figma Plugin 的双线程架构（Main Thread sandbox + UI Iframe）决定了项目需要两套独立的构建目标：<code>code.js</code>（Plugin sandbox）和 <code>ui.html</code>（React UI，需要内联到单文件）。</p>
+
+<table>
+  <tr><th>决策</th><th>选择</th><th>理由</th></tr>
+  <tr><td>构建工具</td><td>Webpack 5</td><td>InlineChunkHtmlPlugin 原生支持 Figma 要求的单文件 UI</td></tr>
+  <tr><td>测试框架</td><td>Vitest</td><td>原生 TypeScript 支持，比 Jest 更快</td></tr>
+  <tr><td>后端部署</td><td>Vercel Edge Functions</td><td>零配置部署、自动 HTTPS、全球 CDN</td></tr>
+  <tr><td>UI 框架</td><td>React 18</td><td>Figma 官方推荐，生态成熟</td></tr>
+</table>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODULE A -->
+<!-- ======================================================== -->
+<div class="section-divider" id="module-a">
+<h1>Module A: 节点遍历与元数据提取</h1>
+</div>
+
+<pre><code>src/plugin/traversal/
+├── index.ts      # 主遍历入口: traverseSelection()
+├── filter.ts     # 智能过滤: shouldIncludeNode(), isDefaultName()
+└── metadata.ts   # 元数据提取: extractMetadata(), extractTextContent()</code></pre>
+
+<h3>DFS 遍历主入口</h3>
+<p><code>traverseSelection()</code> 对每个选中的根节点执行深度优先遍历，两层安全守卫：</p>
+<ul>
+  <li><strong>MAX_TRAVERSAL_DEPTH = 100</strong> — 防止栈溢出</li>
+  <li><strong>MAX_NODE_COUNT = 5000</strong> — 防止超大设计稿拖垮插件</li>
+</ul>
+<p>关键设计：<strong>即使父容器被过滤掉，仍然递归遍历其子节点</strong>，确保"跳过容器但保留有价值子元素"。</p>
+
+<h3>智能过滤引擎（7 条规则）</h3>
+<ol>
+  <li>类型黑名单 — 跳过 VECTOR, LINE, ELLIPSE 等原始图形</li>
+  <li>可见性检查 — 跳过不可见节点（除非 <code>includeInvisible = true</code>）</li>
+  <li>锁定检查 — 跳过锁定节点（除非 <code>includeLocked = true</code>）</li>
+  <li>最小面积检查 — 跳过面积 &lt; 4px 的节点</li>
+  <li>可命名类型白名单 — FRAME, COMPONENT, INSTANCE 等直接通过</li>
+  <li>含文本容器 — FRAME/GROUP 包含 TEXT 子孙时保留</li>
+  <li>用户自定义白名单</li>
+</ol>
+
+<h3>元数据提取（12 个字段）</h3>
+<p>基础信息、几何信息、文本提取、变量绑定（<code>figma.variables.getVariableById()</code>）、组件属性、结构信息。全部 Figma API 调用包裹在 try-catch 中，提供安全回退。</p>
+
+<div class="card">
+  <strong>测试覆盖：</strong> <span class="badge badge-green">60 个测试全部通过</span>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODULE B -->
+<!-- ======================================================== -->
+<div class="section-divider" id="module-b">
+<h1>Module B: SoM 渲染引擎 + 防重叠算法</h1>
+</div>
+
+<pre><code>src/plugin/som/
+├── index.ts          # 模块导出
+├── renderer.ts       # Canvas SoM 渲染器: renderSoMImage()
+└── anti-overlap.ts   # 模拟退火防重叠: optimizeLabelPositions()</code></pre>
+
+<h3>6 步渲染流水线</h3>
+<ol>
+  <li><strong>createCanvas</strong> — 优先 OffscreenCanvas，不可用时回退 HTMLCanvasElement</li>
+  <li><strong>加载底图</strong> — Base64 → HTMLImageElement → drawImage</li>
+  <li><strong>绘制高亮框</strong> — 半透明填充 + 全不透明描边</li>
+  <li><strong>计算标签位置</strong> — measureText → badge 宽高 → 初始位于高亮框左上方</li>
+  <li><strong>模拟退火优化</strong> — optimizeLabelPositions() 防重叠</li>
+  <li><strong>绘制编号徽章</strong> — 圆角矩形背景 + 白色居中数字</li>
+</ol>
+
+<h3>模拟退火防重叠算法</h3>
+<pre><code>能量函数 E = Σ(重叠面积 × 10) + Σ(超界面积 × 5) + Σ(锚点距离 × 1)
+
+模拟退火:
+T = 100, cooling = 0.95
+for i in 1..200:
+    随机选标签 L
+    在 L 周围 20px 半径内尝试 12 个方向
+    if ΔE &lt; 0: 接受
+    else: 以 exp(-ΔE/T) 概率接受
+    T *= 0.95</code></pre>
+
+<div class="card">
+  <strong>测试覆盖：</strong> <span class="badge badge-green">29 (渲染) + 32 (防重叠) = 61 个测试全部通过</span>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODULE C -->
+<!-- ======================================================== -->
+<div class="section-divider" id="module-c">
+<h1>Module C: VLM 集成与 Prompt 工程</h1>
+</div>
+
+<pre><code>src/vlm/
+├── index.ts     # 模块导出
+├── prompt.ts    # CESPC Prompt 构建: buildSystemPrompt(), buildUserPrompt()
+├── client.ts    # VLM API 客户端: VLMClient 类
+└── parser.ts    # 响应解析: parseVLMResponse(), validateNaming()</code></pre>
+
+<h3>VLM 客户端</h3>
+<ul>
+  <li><strong>重试机制</strong> — 3 次尝试，指数退避 1s-10s + ±20% 随机抖动</li>
+  <li><strong>可重试状态码</strong> — 408, 429, 500, 502, 503, 504</li>
+  <li><strong>超时控制</strong> — AbortController + 120 秒超时</li>
+  <li><strong>错误分类</strong> — VLMClientError(code, retryable)</li>
+</ul>
+
+<h3>Prompt 工程（XML 结构化）</h3>
+<p>系统提示词包含 6 个 XML 区块：</p>
+<ul>
+  <li><code>&lt;role_definition&gt;</code> — 定义角色为 UI/UX 架构师</li>
+  <li><code>&lt;global_context&gt;</code> — 注入用户上下文 + 平台特定指南</li>
+  <li><code>&lt;naming_rules&gt;</code> — 完整 CESPC 框架定义</li>
+  <li><code>&lt;few_shot_examples&gt;</code> — 8 个 GOOD + 8 个 BAD 示例</li>
+  <li><code>&lt;anti_hallucination_notice&gt;</code> — 反幻觉指令</li>
+  <li><code>&lt;output_instruction&gt;</code> — JSON 输出格式约束</li>
+</ul>
+
+<h3>响应解析器</h3>
+<p>支持三种 JSON 提取场景（清洁 JSON / Markdown 围栏 / 前后杂文），自动归一化替代键名，CESPC 结构验证，置信度归一化。解析失败时返回降级结果而非抛异常。</p>
+
+<div class="card">
+  <strong>测试覆盖：</strong> <span class="badge badge-green">31 (客户端) + 30 (Prompt) + 58 (解析) = 119 个测试全部通过</span>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODULE D -->
+<!-- ======================================================== -->
+<div class="section-divider" id="module-d">
+<h1>Module D: 插件 React UI</h1>
+</div>
+
+<pre><code>src/ui/
+├── App.tsx                    # 主应用状态机
+├── components/
+│   ├── ContextInput.tsx       # 全局上下文输入
+│   ├── NamingPreview.tsx      # 命名预览/确认面板
+│   ├── BatchProgress.tsx      # 批处理进度
+│   └── CanvasPreview.tsx      # SoM 标记图预览
+├── hooks/
+│   └── useNamingFlow.ts       # 命名流程状态 Hook
+└── styles/
+    └── global.css</code></pre>
+
+<h3>状态机</h3>
+<pre><code>idle → traversing → rendering_som → calling_vlm → previewing → applying → completed
+                                                                        ↘ error</code></pre>
+
+<h3>四大组件</h3>
+<table>
+  <tr><th>组件</th><th>功能</th></tr>
+  <tr><td><strong>ContextInput</strong></td><td>全局上下文 textarea + 平台芯片选择器 + 高级设置折叠面板</td></tr>
+  <tr><td><strong>BatchProgress</strong></td><td>多阶段进度条 + 批次圆点指示器 + SoM 缩略预览 + 计时器</td></tr>
+  <tr><td><strong>NamingPreview</strong></td><td>搜索/筛选 + 全选/反选 + 内联编辑 + 置信度可视化（绿/黄/红）</td></tr>
+  <tr><td><strong>CanvasPreview</strong></td><td>缩放(0.25x-4x) + 拖拽平移 + 标签区域可点击 + 高亮指定标签</td></tr>
+</table>
+
+<div class="card">
+  <strong>状态管理：</strong> <code>useNamingFlow()</code> hook 监听 11 种插件消息类型，暴露 4 个操作方法（startNaming / applyNames / cancelOperation / reset）
+</div>
+
+<!-- ======================================================== -->
+<!-- MODULE E -->
+<!-- ======================================================== -->
+<div class="section-divider" id="module-e">
+<h1>Module E: Serverless 后端 API</h1>
+</div>
+
+<pre><code>backend/
+├── api/naming.ts              # POST /api/naming 端点
+├── src/vlm/
+│   ├── claude-client.ts       # Claude API (claude-sonnet-4-6, temp 0.1)
+│   ├── openai-client.ts       # OpenAI API (gpt-4o, temp 0.1)
+│   └── prompt-builder.ts      # 服务端 CESPC Prompt
+└── vercel.json</code></pre>
+
+<h3>请求处理流程</h3>
+<ol>
+  <li><strong>CORS</strong> — 白名单（figma.com 域名），开发环境允许所有来源</li>
+  <li><strong>请求验证</strong> — 14 项检查（Base64 格式、25MB 限制、50 节点限制、2000 字上下文限制等）</li>
+  <li><strong>速率限制</strong> — 每 IP 每分钟 30 次</li>
+  <li><strong>VLM 调用</strong> — 根据 provider 选择 Claude 或 OpenAI</li>
+  <li><strong>响应处理</strong> — JSON 提取 → 命名验证 → 结构化返回</li>
+</ol>
+
+<h3>错误响应分类</h3>
+<table>
+  <tr><th>场景</th><th>HTTP 状态码</th></tr>
+  <tr><td>验证失败</td><td>400</td></tr>
+  <tr><td>速率限制 / VLM 限流</td><td>429</td></tr>
+  <tr><td>VLM 认证失败</td><td>502</td></tr>
+  <tr><td>VLM 超时</td><td>504</td></tr>
+  <tr><td>内部错误</td><td>500</td></tr>
+</table>
+
+<div class="card">
+  <strong>测试覆盖：</strong> <span class="badge badge-green">53 个集成测试全部通过</span> — 覆盖 CORS、验证、限速、成功流程、错误分类、JSON 提取
+</div>
+
+<!-- ======================================================== -->
+<!-- MODULE F -->
+<!-- ======================================================== -->
+<div class="section-divider" id="module-f">
+<h1>Module F: 插件编排器</h1>
+</div>
+
+<p><code>src/plugin/code.ts</code> — 531 行单文件编排器，运行在 Figma 沙箱中。</p>
+
+<h3>消息流</h3>
+<pre><code>UI → START_NAMING → code.ts
+  code.ts: 遍历节点 → TRAVERSAL_COMPLETE → UI
+  code.ts: 导出截图 → IMAGE_EXPORTED → UI
+  UI: SoM渲染 + VLM调用 → NAMING_RESULTS
+UI → APPLY_NAMES → code.ts
+  code.ts: node.name = xxx → APPLY_COMPLETE → UI</code></pre>
+
+<h3>核心流程: handleStartNaming()</h3>
+<ol>
+  <li>重置取消标志 + 合并配置</li>
+  <li>选区检查（空选区报错）</li>
+  <li>调用 <code>traverseSelection()</code> 遍历节点</li>
+  <li><code>rootNode.exportAsync()</code> 导出 PNG 截图</li>
+  <li>自定义 <code>uint8ArrayToBase64()</code> 编码（Figma 沙箱无 btoa）</li>
+  <li><code>createBatches()</code> 按 batchSize 分批</li>
+  <li>逐批发送 <code>SOM_BATCH_READY</code>，每批之间 <code>yieldToMain()</code></li>
+</ol>
+<p>每个阶段检查 <code>cancelled</code> 标志，支持协作式取消。支持 APPLY_NAMES（批量应用）、REVERT_NAMES（一键回滚）、APPLY_SINGLE（单节点编辑）。</p>
+
+<!-- ======================================================== -->
+<!-- TESTING -->
+<!-- ======================================================== -->
+<div class="section-divider" id="testing">
+<h1>测试报告</h1>
+</div>
+
+<div class="card-grid">
+  <div class="stat-card">
+    <div class="num">7</div>
+    <div class="label">测试文件</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" style="color:var(--green);">293</div>
+    <div class="label">全部通过</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">~14s</div>
+    <div class="label">执行耗时</div>
+  </div>
+</div>
+
+<h3>单元测试</h3>
+<table>
+  <tr><th>测试文件</th><th>模块</th><th>测试数</th><th>内容</th></tr>
+  <tr><td><code>traversal.test.ts</code></td><td>A</td><td>60</td><td>DFS 遍历、过滤规则、默认名称检测、元数据提取</td></tr>
+  <tr><td><code>renderer.test.ts</code></td><td>B</td><td>29</td><td>Canvas 渲染、高亮框、标签绘制、图片加载、Base64 导出</td></tr>
+  <tr><td><code>anti-overlap.test.ts</code></td><td>B</td><td>32</td><td>重叠面积、边界惩罚、能量函数、模拟退火优化器</td></tr>
+  <tr><td><code>vlm-client.test.ts</code></td><td>C</td><td>31</td><td>API 调用、重试逻辑、超时处理、AbortController、错误分类</td></tr>
+  <tr><td><code>prompt.test.ts</code></td><td>C</td><td>30</td><td>CESPC 框架、globalContext 注入、平台处理、XML 结构</td></tr>
+  <tr><td><code>parser.test.ts</code></td><td>C</td><td>58</td><td>JSON 提取、键名归一化、置信度、CESPC 验证、名称消毒</td></tr>
+</table>
+
+<h3>集成测试</h3>
+<table>
+  <tr><th>测试文件</th><th>模块</th><th>测试数</th><th>内容</th></tr>
+  <tr><td><code>naming-api.test.ts</code></td><td>E</td><td>53</td><td>CORS、请求验证（14项）、速率限制、Claude/OpenAI 调用、JSON 提取、错误分类</td></tr>
+</table>
+
+<h3>Mock 策略</h3>
+<ul>
+  <li><strong>Canvas API</strong> — jsdom + 自定义 MockOffscreenCanvas</li>
+  <li><strong>VLM API</strong> — <code>vi.mock()</code> 替换 Claude/OpenAI 客户端</li>
+  <li><strong>fetch</strong> — <code>globalThis.fetch</code> 替换 + 自定义 Response 工厂</li>
+  <li><strong>Figma API</strong> — 自定义 MockNode 类 + 模拟图层树</li>
+</ul>
+
+<!-- ======================================================== -->
+<!-- REVIEW -->
+<!-- ======================================================== -->
+<div class="section-divider" id="review">
+<h1>代码审查 + 安全审计</h1>
+</div>
+
+<div id="security">
+<h3>发现摘要</h3>
+<table>
+  <tr><th>严重度</th><th>数量</th><th>典型问题</th></tr>
+  <tr><td><span class="severity-critical">Critical</span></td><td>2</td><td>CORS 允许 <code>"null"</code> origin；<code>globalContext</code> prompt 注入</td></tr>
+  <tr><td><span class="severity-high">High</span></td><td>5</td><td>硬编码 API 端点；postMessage 无校验；内存限速无效；CESPC 格式不一致</td></tr>
+  <tr><td><span class="severity-medium">Medium</span></td><td>9</td><td>无画布尺寸上限；Base64 O(n^2)；类型守卫副作用；名称未消毒</td></tr>
+  <tr><td><span class="severity-low">Low</span></td><td>11</td><td>平台类型不一致；子域名匹配漏洞；textarea 无长度提示</td></tr>
+</table>
+
+<h3>架构评价</h3>
+<ul>
+  <li><span class="badge badge-green">优秀</span> 模块边界清晰，共享类型系统完备</li>
+  <li><span class="badge badge-green">优秀</span> 消息协议类型安全（18 种消息，全有 TypeScript 类型保护）</li>
+  <li><span class="badge badge-green">优秀</span> 无 <code>any</code> 类型泄露</li>
+  <li><span class="badge badge-green">优秀</span> 错误处理层次分明</li>
+</ul>
+
+<h3>安全评价</h3>
+<ul>
+  <li><span class="badge badge-green">✅</span> API Key 安全 — 仅存在于 Vercel 环境变量</li>
+  <li><span class="badge badge-green">✅</span> XSS 防护 — React JSX 转义 + <code>escapeXml()</code></li>
+  <li><span class="badge badge-green">✅</span> 请求验证 — 后端 14 项输入校验</li>
+  <li><span class="badge badge-yellow">⚠️</span> 需改进 — CORS <code>"null"</code> origin 需移除；<code>globalContext</code> 需 XML 转义</li>
+</ul>
+
+<h3>风险评估</h3>
+<table>
+  <tr><th>场景</th><th>评价</th></tr>
+  <tr><td>内部/演示使用</td><td><span class="badge badge-green">可直接使用</span> 安全问题在可信环境内可接受</td></tr>
+  <tr><td>公网部署</td><td><span class="badge badge-yellow">需修复</span> Critical + High 问题必须先处理</td></tr>
+  <tr><td>Figma 社区发布</td><td><span class="badge badge-yellow">需修复</span> 需移除硬编码端点，添加用户级限流</td></tr>
+</table>
+
+<h3>优先改进事项</h3>
+<ol>
+  <li><strong>安全 (Critical)</strong> — 修复 CORS <code>"null"</code> origin + 添加 API 认证</li>
+  <li><strong>安全 (High)</strong> — 转义 <code>globalContext</code>、校验 postMessage origin、分布式限流</li>
+  <li><strong>一致性</strong> — 统一客户端/服务端 CESPC 命名格式</li>
+  <li><strong>性能</strong> — Canvas 尺寸上限检查、Blob URL 替代大 Base64、优化 O(n^2) 拼接</li>
+  <li><strong>健壮性</strong> — 名称消毒后再回写、处理并发冲突</li>
+</ol>
+</div>
+
+<!-- ---- Footer ---- -->
+<hr>
+<p style="color:var(--text-secondary);font-size:13px;text-align:center;margin-top:40px;">
+  Figma Namer Documentation &mdash; Generated on 2026-02-22<br>
+  293 Tests Passing &bull; 6 Modules &bull; 12 Reports
+</p>
+
+</main>
+</div>
+
+<script>
+// Simple scroll spy for sidebar
+const links = document.querySelectorAll('.sidebar nav a');
+const sections = [];
+links.forEach(link => {
+  const id = link.getAttribute('href')?.slice(1);
+  if (id) {
+    const el = document.getElementById(id);
+    if (el) sections.push({ id, el, link });
+  }
+});
+
+function updateActive() {
+  let current = '';
+  for (const s of sections) {
+    if (s.el.getBoundingClientRect().top <= 100) current = s.id;
+  }
+  links.forEach(l => l.classList.remove('active'));
+  const active = sections.find(s => s.id === current);
+  if (active) active.link.classList.add('active');
+}
+window.addEventListener('scroll', updateActive, { passive: true });
+updateActive();
+</script>
+</body>
+</html>
