@@ -194,6 +194,43 @@ export interface FigmaNode {
   layoutMode?: 'HORIZONTAL' | 'VERTICAL' | 'NONE';
 }
 
+/** File classification based on structure analysis */
+export type FileClassification =
+  | 'app-screens'
+  | 'component-library'
+  | 'icon-library'
+  | 'mixed'
+  | 'landing-page'
+  | 'unknown';
+
+/** A page (top-level frame/screen) identified by structure analysis */
+export interface PageInfo {
+  /** Figma node ID of the page/screen */
+  nodeId: string;
+  /** Display name of the page */
+  name: string;
+  /** Role identified by AI */
+  pageRole: string;
+  /** Whether this is an auxiliary element (notes, annotations, dividers) */
+  isAuxiliary: boolean;
+  /** Node IDs within this page that need naming */
+  nodeIdsToName: string[];
+  /** Extracted node metadata for nodes to name */
+  nodes: NodeMetadata[];
+}
+
+/** Result of AI structure analysis (Round 1) */
+export interface StructureAnalysis {
+  /** Detected file type */
+  fileType: FileClassification;
+  /** AI reasoning about the file structure */
+  reasoning: string;
+  /** Identified pages/screens with their roles */
+  pages: PageInfo[];
+  /** Model used for analysis */
+  analysisModel: string;
+}
+
 /** Analysis result from POST /api/analyze */
 export interface AnalyzeResult {
   totalNodes: number;
@@ -203,10 +240,20 @@ export interface AnalyzeResult {
   rootName: string;
   /** The root node ID (for frame context export) */
   rootNodeId: string | null;
+  /** Structure analysis result (when AI analysis is used) */
+  structureAnalysis?: StructureAnalysis;
+  /** Identified pages for page-based naming */
+  pages?: PageInfo[];
+  /** Total number of identified pages */
+  totalPages?: number;
 }
 
 /** SSE progress event types */
 export type ProgressEventType =
+  | 'structure_analysis_started'
+  | 'structure_analysis_complete'
+  | 'page_started'
+  | 'page_complete'
   | 'batch_started'
   | 'image_exported'
   | 'som_rendered'
@@ -231,6 +278,14 @@ export interface ProgressEvent {
   cleanImageBase64?: string;
   /** Full frame context image (exported once) */
   frameImageBase64?: string;
+  /** Current page index (0-based) */
+  pageIndex?: number;
+  /** Total pages */
+  totalPages?: number;
+  /** Current page name */
+  pageName?: string;
+  /** Structure analysis result */
+  structureAnalysis?: StructureAnalysis;
 }
 
 /** Default configuration */

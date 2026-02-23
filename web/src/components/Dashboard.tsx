@@ -9,7 +9,7 @@ import { DEFAULT_CONFIG } from '@shared/types';
 import { useI18n, LangToggle } from '../i18n';
 
 interface DashboardProps {
-  onAnalyze: (figmaUrl: string, figmaToken: string, config?: Partial<NamerConfig>) => void;
+  onAnalyze: (figmaUrl: string, figmaToken: string, vlmApiKey?: string, globalContext?: string, config?: Partial<NamerConfig>) => void;
   isAnalyzing: boolean;
   error: string | null;
 }
@@ -68,7 +68,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
     };
     if (batchSize !== DEFAULT_CONFIG.batchSize) overrides.batchSize = batchSize;
     if (exportScale !== DEFAULT_CONFIG.exportScale) overrides.exportScale = exportScale;
-    onAnalyze(figmaUrl, figmaToken, overrides);
+    // Pass vlmApiKey and globalContext for structure analysis (Round 1)
+    onAnalyze(figmaUrl, figmaToken, vlmApiKey, globalContext, overrides);
   };
 
   const canSubmit = figmaToken.trim() && figmaUrl.trim() && vlmApiKey.trim() && !isAnalyzing;

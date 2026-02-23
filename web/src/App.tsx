@@ -10,7 +10,7 @@ import { BatchProgress } from './components/BatchProgress';
 import { NamingPreview } from './components/NamingPreview';
 import { useNamingFlow } from './hooks/useNamingFlow';
 import { useI18n } from './i18n';
-import type { NamerConfig } from '@shared/types';
+import type { NamerConfig, PageInfo } from '@shared/types';
 
 export const App: React.FC = () => {
   const { t } = useI18n();
@@ -34,7 +34,7 @@ export const App: React.FC = () => {
     platform: 'Auto',
   });
 
-  const handleAnalyze = (figmaUrl: string, figmaToken: string, config?: Partial<NamerConfig>) => {
+  const handleAnalyze = (figmaUrl: string, figmaToken: string, vlmApiKey?: string, globalContext?: string, config?: Partial<NamerConfig>) => {
     // Save for later
     credentialsRef.current.figmaUrl = figmaUrl;
     credentialsRef.current.figmaToken = figmaToken;
@@ -44,13 +44,15 @@ export const App: React.FC = () => {
     }
     // Get stored VLM API key
     const stored = getStoredCredentials();
-    credentialsRef.current.vlmApiKey = stored.vlmApiKey;
+    credentialsRef.current.vlmApiKey = vlmApiKey || stored.vlmApiKey;
     credentialsRef.current.vlmProvider = stored.vlmProvider;
+    if (globalContext) credentialsRef.current.globalContext = globalContext;
 
-    flow.analyze(figmaUrl, figmaToken, config);
+    // Pass vlmApiKey for structure analysis
+    flow.analyze(figmaUrl, figmaToken, credentialsRef.current.vlmApiKey, credentialsRef.current.globalContext, config);
   };
 
-  const handleStartNaming = () => {
+  const handleStartNaming = (selectedPages?: PageInfo[]) => {
     const creds = credentialsRef.current;
     flow.startNaming({
       figmaToken: creds.figmaToken,
@@ -59,6 +61,7 @@ export const App: React.FC = () => {
       globalContext: creds.globalContext,
       platform: creds.platform,
       config: creds.config,
+      pages: selectedPages,
     });
   };
 
@@ -110,6 +113,9 @@ export const App: React.FC = () => {
         framePreviewImage={flow.framePreviewImage}
         error={flow.error}
         onCancel={flow.reset}
+        currentPage={flow.currentPage}
+        totalPages={flow.totalPages}
+        currentPageName={flow.currentPageName}
       />
     );
   }

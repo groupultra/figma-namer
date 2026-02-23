@@ -14,6 +14,10 @@ export interface NamingSession {
   completedNodes: number;
   results: NamingResult[];
   error?: string;
+  /** Page-level tracking */
+  totalPages: number;
+  completedPages: number;
+  currentPageName: string;
   /** SSE listeners for this session */
   listeners: Set<(event: ProgressEvent) => void>;
   createdAt: number;
@@ -42,6 +46,9 @@ export function createSession(): NamingSession {
     completedBatches: 0,
     completedNodes: 0,
     results: [],
+    totalPages: 0,
+    completedPages: 0,
+    currentPageName: '',
     listeners: new Set(),
     createdAt: Date.now(),
   };

@@ -1,20 +1,24 @@
 // ============================================================
 // POST /api/analyze
-// Fetches a Figma file tree, traverses it, and returns node stats
+// Fetches a Figma file tree, optionally runs AI structure analysis,
+// then returns node stats with page grouping
 // ============================================================
 
 import { Router } from 'express';
 import { parseFigmaUrl } from '../figma/url-parser';
 import { getFile } from '../figma/client';
-import { traverseFileTree } from '../figma/traversal';
+import { traverseFileTree, extractNodesById } from '../figma/traversal';
+import { buildCondensedTreeSummary } from '../figma/tree-summarizer';
+import { buildStructureAnalysisPrompt } from '../vlm/prompt-builder';
+import { callGemini } from '../vlm/gemini-client';
 import { DEFAULT_CONFIG } from '@shared/types';
-import type { NamerConfig, FigmaNode, AnalyzeResult } from '@shared/types';
+import type { NamerConfig, FigmaNode, AnalyzeResult, StructureAnalysis, PageInfo } from '@shared/types';
 
 const router = Router();
 
 router.post('/', async (req, res) => {
   try {
-    const { figmaUrl, figmaToken, config: configOverrides } = req.body;
+    const { figmaUrl, figmaToken, vlmApiKey, globalContext, config: configOverrides } = req.body;
 
     if (!figmaUrl || !figmaToken) {
       return res.status(400).json({ error: 'figmaUrl and figmaToken are required' });
@@ -29,14 +33,12 @@ router.post('/', async (req, res) => {
     // Get the root nodes to traverse
     let rootNodes: FigmaNode[];
     if (nodeId && fileData.nodes) {
-      // When specific node is requested, Figma returns { nodes: { "id": { document: ... } } }
       const nodeData = fileData.nodes[nodeId];
       if (!nodeData?.document) {
         return res.status(404).json({ error: `Node ${nodeId} not found in file` });
       }
       rootNodes = [nodeData.document as FigmaNode];
     } else {
-      // Full file: traverse all pages or the document children
       const doc = fileData.document;
       if (!doc?.children) {
         return res.status(404).json({ error: 'No document found in file' });
@@ -47,27 +49,79 @@ router.post('/', async (req, res) => {
     // Merge config
     const config: NamerConfig = { ...DEFAULT_CONFIG, ...configOverrides };
 
-    // Traverse
-    const nodes = traverseFileTree(rootNodes, config);
-
-    // Compute stats
-    const nodesByType: Record<string, number> = {};
-    for (const node of nodes) {
-      nodesByType[node.nodeType] = (nodesByType[node.nodeType] || 0) + 1;
-    }
-
-    const estimatedBatches = Math.ceil(nodes.length / config.batchSize);
-
     // Determine root node ID for frame context exports
     const rootNodeId = nodeId || (rootNodes.length === 1 ? rootNodes[0].id : null);
 
+    // ------------------------------------------------------------------
+    // Try AI structure analysis if vlmApiKey is provided
+    // ------------------------------------------------------------------
+    let structureAnalysis: StructureAnalysis | undefined;
+    let pages: PageInfo[] | undefined;
+
+    if (vlmApiKey) {
+      try {
+        const analysisResult = await runStructureAnalysis(rootNodes, vlmApiKey, globalContext || '');
+        structureAnalysis = analysisResult;
+
+        // Extract nodes for each non-auxiliary page
+        pages = [];
+        for (const page of analysisResult.pages) {
+          if (page.isAuxiliary) {
+            pages.push(page); // Include but with empty nodes
+            continue;
+          }
+
+          if (page.nodeIdsToName.length > 0) {
+            // Extract specific nodes identified by AI
+            const targetIds = new Set(page.nodeIdsToName);
+            const pageNodes = extractNodesById(rootNodes, targetIds, config);
+            pages.push({ ...page, nodes: pageNodes });
+          } else {
+            // Fallback: traverse the page subtree
+            const pageRoot = findPageNode(rootNodes, page.nodeId);
+            if (pageRoot) {
+              const pageNodes = traverseFileTree([pageRoot], config);
+              pages.push({
+                ...page,
+                nodes: pageNodes,
+                nodeIdsToName: pageNodes.map(n => n.id),
+              });
+            } else {
+              pages.push(page);
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn('[analyze] Structure analysis failed, falling back to traversal:', err.message);
+        // Fall through to standard traversal
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // Standard traversal (always run for stats, also used as fallback)
+    // ------------------------------------------------------------------
+    const allNodes = pages
+      ? pages.flatMap(p => p.nodes)
+      : traverseFileTree(rootNodes, config);
+
+    // Compute stats
+    const nodesByType: Record<string, number> = {};
+    for (const node of allNodes) {
+      nodesByType[node.nodeType] = (nodesByType[node.nodeType] || 0) + 1;
+    }
+
+    const estimatedBatches = Math.ceil(allNodes.length / config.batchSize);
+
     const result: AnalyzeResult = {
-      totalNodes: nodes.length,
+      totalNodes: allNodes.length,
       nodesByType,
-      nodes,
+      nodes: allNodes,
       estimatedBatches,
       rootName: fileData.name || 'Untitled',
       rootNodeId,
+      structureAnalysis,
+      pages,
+      totalPages: pages?.filter(p => !p.isAuxiliary).length,
     };
 
     res.json(result);
@@ -77,5 +131,78 @@ router.post('/', async (req, res) => {
     res.status(status).json({ error: err.message });
   }
 });
+
+/**
+ * Run AI structure analysis using Gemini Flash (cheap, text-only).
+ */
+async function runStructureAnalysis(
+  rootNodes: FigmaNode[],
+  vlmApiKey: string,
+  globalContext: string,
+): Promise<StructureAnalysis> {
+  // Round 0: Generate condensed tree summary
+  const treeSummary = buildCondensedTreeSummary(rootNodes);
+  console.log(`[analyze] Tree summary: ${treeSummary.length} chars`);
+
+  // Round 1: Call Gemini Flash for structure analysis (text-only, no images)
+  const { system, user } = buildStructureAnalysisPrompt(treeSummary, globalContext);
+
+  const result = await callGemini(
+    vlmApiKey,
+    [], // No images — text-only analysis
+    system,
+    user,
+    'gemini-3-flash-preview',
+  );
+
+  // Parse response
+  let parsed: any;
+  try {
+    let cleaned = result.content.trim();
+    const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+    if (fenceMatch) cleaned = fenceMatch[1].trim();
+
+    parsed = JSON.parse(cleaned);
+  } catch {
+    // Try extracting JSON object
+    const objMatch = result.content.match(/\{[\s\S]*\}/);
+    if (objMatch) {
+      parsed = JSON.parse(objMatch[0]);
+    } else {
+      throw new Error('Failed to parse structure analysis response');
+    }
+  }
+
+  const pages: PageInfo[] = (parsed.pages || []).map((p: any) => ({
+    nodeId: p.nodeId || '',
+    name: p.name || '',
+    pageRole: p.pageRole || '',
+    isAuxiliary: p.isAuxiliary === true,
+    nodeIdsToName: Array.isArray(p.nodeIdsToName) ? p.nodeIdsToName : [],
+    nodes: [], // Will be populated later
+  }));
+
+  return {
+    fileType: parsed.fileType || 'unknown',
+    reasoning: parsed.reasoning || '',
+    pages,
+    analysisModel: 'gemini-3-flash-preview',
+  };
+}
+
+/**
+ * Find a page node by ID in root nodes (shallow search).
+ */
+function findPageNode(rootNodes: FigmaNode[], nodeId: string): FigmaNode | null {
+  for (const root of rootNodes) {
+    if (root.id === nodeId) return root;
+    if (root.children) {
+      for (const child of root.children) {
+        if (child.id === nodeId) return child;
+      }
+    }
+  }
+  return null;
+}
 
 export default router;

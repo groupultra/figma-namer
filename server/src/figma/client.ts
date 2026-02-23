@@ -11,11 +11,15 @@ export interface FigmaAPIOptions {
 
 /**
  * Fetch a Figma file (or a subtree if nodeId is provided).
+ * @param depth - Optional depth limit for the API response tree
+ * @param geometry - Whether to include geometry data (default true)
  */
 export async function getFile(
   fileKey: string,
   token: string,
   nodeId?: string | null,
+  depth?: number,
+  geometry: boolean = true,
 ): Promise<any> {
   let url = `${FIGMA_API_BASE}/files/${fileKey}`;
   const params = new URLSearchParams();
@@ -23,8 +27,12 @@ export async function getFile(
   if (nodeId) {
     params.set('ids', nodeId);
   }
-  // Only fetch needed data
-  params.set('geometry', 'paths');
+  if (geometry) {
+    params.set('geometry', 'paths');
+  }
+  if (depth !== undefined) {
+    params.set('depth', String(depth));
+  }
 
   const queryStr = params.toString();
   if (queryStr) url += `?${queryStr}`;

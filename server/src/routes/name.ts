@@ -1,15 +1,15 @@
 // ============================================================
 // POST /api/name
-// Starts the batch naming process
+// Starts the batch naming process — supports page-based flow
 // ============================================================
 
 import { Router } from 'express';
-import type { NodeMetadata, NamingResult, SoMLabel } from '@shared/types';
+import type { NodeMetadata, NamingResult, SoMLabel, PageInfo } from '@shared/types';
 import { DEFAULT_CONFIG } from '@shared/types';
 import { createSession, emitProgress } from '../session/manager';
-import { exportNodeImage } from '../figma/image-export';
-import { renderSoMImage } from '../som/renderer';
-import { buildSystemPrompt, buildUserPrompt, type NodeSupplement } from '../vlm/prompt-builder';
+import { exportNodeImage, exportMultipleNodeImages } from '../figma/image-export';
+import { renderSoMImage, renderPageHighlights, renderComponentGrid } from '../som/renderer';
+import { buildSystemPrompt, buildUserPrompt, buildSystemPromptWithPageContext, type NodeSupplement } from '../vlm/prompt-builder';
 import { callClaude, type ClaudeModel } from '../vlm/claude-client';
 import { callOpenAI } from '../vlm/openai-client';
 import { callGemini, type GeminiModel } from '../vlm/gemini-client';
@@ -62,6 +62,7 @@ router.post('/', async (req, res) => {
   try {
     const {
       nodes,
+      pages,
       figmaToken,
       fileKey,
       rootNodeId,
@@ -72,8 +73,12 @@ router.post('/', async (req, res) => {
       config: configOverrides,
     } = req.body;
 
-    if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
-      return res.status(400).json({ error: 'nodes array is required' });
+    // Support both page-based and legacy node-based flow
+    const hasPages = pages && Array.isArray(pages) && pages.length > 0;
+    const hasNodes = nodes && Array.isArray(nodes) && nodes.length > 0;
+
+    if (!hasPages && !hasNodes) {
+      return res.status(400).json({ error: 'pages or nodes array is required' });
     }
     if (!figmaToken || !fileKey) {
       return res.status(400).json({ error: 'figmaToken and fileKey are required' });
@@ -84,45 +89,384 @@ router.post('/', async (req, res) => {
 
     const config = { ...DEFAULT_CONFIG, ...configOverrides };
     const session = createSession();
-    const batchSize = config.batchSize;
-    const totalBatches = Math.ceil(nodes.length / batchSize);
 
-    session.totalNodes = nodes.length;
-    session.totalBatches = totalBatches;
-    session.status = 'naming';
+    if (hasPages) {
+      // Page-based flow
+      const activePages = (pages as PageInfo[]).filter(p => !p.isAuxiliary && p.nodes.length > 0);
+      const totalNodes = activePages.reduce((sum, p) => sum + p.nodes.length, 0);
+      const totalBatches = activePages.reduce((sum, p) => sum + Math.ceil(p.nodes.length / config.batchSize), 0);
 
-    // Return session ID immediately so client can connect to SSE
-    res.json({ sessionId: session.id, totalBatches, totalNodes: nodes.length });
+      session.totalNodes = totalNodes;
+      session.totalBatches = totalBatches;
+      session.totalPages = activePages.length;
+      session.status = 'naming';
 
-    // Process batches asynchronously
-    processBatches(
-      session.id,
-      nodes as NodeMetadata[],
-      figmaToken,
-      fileKey,
-      rootNodeId || null,
-      vlmProvider,
-      vlmApiKey,
-      globalContext,
-      platform,
-      config,
-    ).catch((err) => {
-      console.error('[name] Background processing error:', err);
-      session.status = 'error';
-      session.error = err.message;
-      emitProgress(session.id, {
-        type: 'error',
-        sessionId: session.id,
-        message: err.message,
+      res.json({ sessionId: session.id, totalBatches, totalNodes, totalPages: activePages.length });
+
+      processPageBatches(
+        session.id,
+        activePages,
+        figmaToken,
+        fileKey,
+        vlmProvider,
+        vlmApiKey,
+        globalContext,
+        platform,
+        config,
+      ).catch((err) => {
+        console.error('[name] Background processing error:', err);
+        session.status = 'error';
+        session.error = err.message;
+        emitProgress(session.id, { type: 'error', sessionId: session.id, message: err.message });
       });
-    });
+    } else {
+      // Legacy flat-node flow (unchanged)
+      const batchSize = config.batchSize;
+      const totalBatches = Math.ceil(nodes.length / batchSize);
+
+      session.totalNodes = nodes.length;
+      session.totalBatches = totalBatches;
+      session.status = 'naming';
+
+      res.json({ sessionId: session.id, totalBatches, totalNodes: nodes.length });
+
+      processLegacyBatches(
+        session.id,
+        nodes as NodeMetadata[],
+        figmaToken,
+        fileKey,
+        rootNodeId || null,
+        vlmProvider,
+        vlmApiKey,
+        globalContext,
+        platform,
+        config,
+      ).catch((err) => {
+        console.error('[name] Background processing error:', err);
+        session.status = 'error';
+        session.error = err.message;
+        emitProgress(session.id, { type: 'error', sessionId: session.id, message: err.message });
+      });
+    }
   } catch (err: any) {
     console.error('[name] Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-async function processBatches(
+// ============================================================
+// Page-based processing (new agentic flow)
+// ============================================================
+
+async function processPageBatches(
+  sessionId: string,
+  pages: PageInfo[],
+  figmaToken: string,
+  fileKey: string,
+  vlmProvider: string,
+  vlmApiKey: string,
+  globalContext: string,
+  platform: string,
+  config: any,
+) {
+  const { getSession } = await import('../session/manager');
+  const session = getSession(sessionId);
+  if (!session) return;
+
+  const allResults: NamingResult[] = [];
+  let globalBatchIdx = 0;
+  let globalMarkId = 1;
+
+  for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
+    const page = pages[pageIdx];
+    session.currentPageName = page.name;
+
+    emitProgress(sessionId, {
+      type: 'page_started',
+      sessionId,
+      pageIndex: pageIdx,
+      totalPages: pages.length,
+      pageName: page.name,
+      message: `Starting page ${pageIdx + 1}/${pages.length}: ${page.name}`,
+    });
+
+    // -----------------------------------------------------------------
+    // 1. Export page screenshot (shared for all batches within this page)
+    // -----------------------------------------------------------------
+    let pageBase64 = '';
+    let pageImgWidth = 0;
+    let pageImgHeight = 0;
+    try {
+      const pageBuf = await exportNodeImage(fileKey, figmaToken, page.nodeId, 1);
+      pageBase64 = pageBuf.toString('base64');
+      pageImgWidth = pageBuf.readUInt32BE(16);
+      pageImgHeight = pageBuf.readUInt32BE(20);
+    } catch (err: any) {
+      console.warn(`[name] Page image export failed for "${page.name}":`, err.message);
+    }
+
+    // -----------------------------------------------------------------
+    // 2. Process nodes in batches within this page
+    // -----------------------------------------------------------------
+    const batchSize = config.batchSize;
+    const pageBatches: NodeMetadata[][] = [];
+    for (let i = 0; i < page.nodes.length; i += batchSize) {
+      pageBatches.push(page.nodes.slice(i, i + batchSize));
+    }
+
+    for (let localBatchIdx = 0; localBatchIdx < pageBatches.length; localBatchIdx++) {
+      const batch = pageBatches[localBatchIdx];
+
+      emitProgress(sessionId, {
+        type: 'batch_started',
+        sessionId,
+        batchIndex: globalBatchIdx,
+        totalBatches: session.totalBatches,
+        pageIndex: pageIdx,
+        totalPages: pages.length,
+        pageName: page.name,
+        message: `Page "${page.name}" - Batch ${localBatchIdx + 1}/${pageBatches.length}`,
+      });
+
+      // Assign mark IDs for this batch
+      const batchMarkStart = globalMarkId;
+      const labels: SoMLabel[] = batch.map((node, i) => {
+        const markId = globalMarkId++;
+        return {
+          markId,
+          nodeId: node.id,
+          labelPosition: { x: node.boundingBox.x, y: node.boundingBox.y },
+          highlightBox: node.boundingBox,
+          originalName: node.originalName,
+        };
+      });
+
+      // -----------------------------------------------------------
+      // 3. Export component images + render grid (Image 2)
+      // -----------------------------------------------------------
+      let componentGridBase64 = '';
+      try {
+        const nodeIds = batch.map(n => n.id);
+        const nodeImages = await exportMultipleNodeImages(fileKey, figmaToken, nodeIds, config.exportScale);
+
+        const components: Array<{ markId: number; imageBuffer: Buffer }> = [];
+        batch.forEach((node, i) => {
+          const buf = nodeImages.get(node.id);
+          if (buf) {
+            components.push({ markId: batchMarkStart + i, imageBuffer: buf });
+          }
+        });
+
+        if (components.length > 0) {
+          componentGridBase64 = await renderComponentGrid(components);
+        }
+      } catch (err: any) {
+        console.warn(`[name] Component grid failed for batch ${globalBatchIdx}:`, err.message);
+      }
+
+      // Fallback: if no grid, use SoM-annotated parent area
+      if (!componentGridBase64) {
+        try {
+          const parentNodeId = findCommonAncestor(batch);
+          const imageBuf = await exportNodeImage(fileKey, figmaToken, parentNodeId, config.exportScale);
+          const cleanBase64 = imageBuf.toString('base64');
+          const imgWidth = imageBuf.readUInt32BE(16);
+          const imgHeight = imageBuf.readUInt32BE(20);
+
+          const parentBox = batch[0].boundingBox;
+          const relativeLabels = labels.map((label) => ({
+            ...label,
+            highlightBox: {
+              x: (label.highlightBox.x - parentBox.x) * config.exportScale,
+              y: (label.highlightBox.y - parentBox.y) * config.exportScale,
+              width: label.highlightBox.width * config.exportScale,
+              height: label.highlightBox.height * config.exportScale,
+            },
+          }));
+
+          componentGridBase64 = await renderSoMImage({
+            baseImageBase64: cleanBase64,
+            baseImageWidth: imgWidth,
+            baseImageHeight: imgHeight,
+            labels: relativeLabels,
+            highlightColor: config.highlightColor,
+            labelFontSize: config.labelFontSize * config.exportScale,
+          });
+        } catch (err: any) {
+          console.warn(`[name] SoM fallback failed for batch ${globalBatchIdx}:`, err.message);
+        }
+      }
+
+      emitProgress(sessionId, {
+        type: 'image_exported',
+        sessionId,
+        batchIndex: globalBatchIdx,
+        totalBatches: session.totalBatches,
+        cleanImageBase64: componentGridBase64,
+        ...(localBatchIdx === 0 && pageBase64 ? { frameImageBase64: pageBase64 } : {}),
+      });
+
+      // -----------------------------------------------------------
+      // 4. Render page highlights (Image 3)
+      // -----------------------------------------------------------
+      let pageHighlightBase64 = '';
+      if (pageBase64 && pageImgWidth > 0) {
+        try {
+          const pageBBox = { x: 0, y: 0, width: 0, height: 0 };
+          // Find page bbox from nodes
+          if (batch.length > 0 && batch[0].parentId) {
+            // Use the page's own bounding box inferred from first node
+            const firstNode = batch[0];
+            pageBBox.x = firstNode.boundingBox.x - 10;
+            pageBBox.y = firstNode.boundingBox.y - 10;
+          }
+          // Use page node's bounding coordinates — approximate from the page image
+          const pageNode = page.nodes[0];
+          if (pageNode) {
+            // All nodes share the page container, use min x/y across all nodes
+            const allX = page.nodes.map(n => n.boundingBox.x);
+            const allY = page.nodes.map(n => n.boundingBox.y);
+            pageBBox.x = Math.min(...allX);
+            pageBBox.y = Math.min(...allY);
+          }
+
+          pageHighlightBase64 = await renderPageHighlights({
+            pageImageBase64: pageBase64,
+            pageImageWidth: pageImgWidth,
+            pageImageHeight: pageImgHeight,
+            pageBBox: pageBBox,
+            labels,
+            highlightColor: config.highlightColor,
+            labelFontSize: config.labelFontSize,
+            exportScale: 1, // page image is already at 1x
+          });
+        } catch (err: any) {
+          console.warn(`[name] Page highlights failed:`, err.message);
+        }
+      }
+
+      emitProgress(sessionId, {
+        type: 'som_rendered',
+        sessionId,
+        batchIndex: globalBatchIdx,
+        totalBatches: session.totalBatches,
+        somImageBase64: pageHighlightBase64 || componentGridBase64,
+        cleanImageBase64: componentGridBase64,
+      });
+
+      // -----------------------------------------------------------
+      // 5. Call VLM with up to 3 images
+      // -----------------------------------------------------------
+      const systemPrompt = pageBase64
+        ? buildSystemPromptWithPageContext(globalContext, platform)
+        : buildSystemPrompt(globalContext, platform);
+
+      const supplements: NodeSupplement[] = batch.map((node, i) => ({
+        markId: batchMarkStart + i,
+        textContent: node.textContent,
+        boundVariables: node.boundVariables,
+        componentProperties: node.componentProperties,
+      }));
+      const userPrompt = buildUserPrompt(supplements);
+
+      // Build image array: [page full, component grid, page highlights]
+      const vlmImages: string[] = [];
+      if (pageBase64) vlmImages.push(pageBase64);
+      if (componentGridBase64) vlmImages.push(componentGridBase64);
+      if (pageHighlightBase64 && pageHighlightBase64 !== componentGridBase64) {
+        vlmImages.push(pageHighlightBase64);
+      }
+      // Ensure at least one image
+      if (vlmImages.length === 0 && componentGridBase64) {
+        vlmImages.push(componentGridBase64);
+      }
+
+      let vlmContent: string;
+      try {
+        const result = await callVLM(vlmProvider, vlmApiKey, vlmImages, systemPrompt, userPrompt);
+        vlmContent = result.content;
+      } catch (err: any) {
+        console.error(`[name] VLM call failed for batch ${globalBatchIdx}:`, err.message);
+        emitProgress(sessionId, {
+          type: 'error',
+          sessionId,
+          message: `VLM error on page "${page.name}" batch ${localBatchIdx + 1}: ${err.message}`,
+        });
+        globalBatchIdx++;
+        continue;
+      }
+
+      emitProgress(sessionId, {
+        type: 'vlm_called',
+        sessionId,
+        batchIndex: globalBatchIdx,
+        totalBatches: session.totalBatches,
+      });
+
+      // -----------------------------------------------------------
+      // 6. Parse response → results
+      // -----------------------------------------------------------
+      const expectedMarkIds = batch.map((_, i) => batchMarkStart + i);
+      const parsedNamings = parseNamingResponse(vlmContent, expectedMarkIds);
+
+      const batchResults: NamingResult[] = parsedNamings.map((naming, i) => ({
+        markId: naming.markId,
+        nodeId: batch[i].id,
+        originalName: batch[i].originalName,
+        suggestedName: naming.name || batch[i].originalName,
+        confidence: naming.confidence,
+      }));
+
+      allResults.push(...batchResults);
+      session.completedBatches = globalBatchIdx + 1;
+      session.completedNodes += batch.length;
+      session.results = allResults;
+
+      emitProgress(sessionId, {
+        type: 'batch_complete',
+        sessionId,
+        batchIndex: globalBatchIdx,
+        totalBatches: session.totalBatches,
+        completedNodes: session.completedNodes,
+        totalNodes: session.totalNodes,
+        pageIndex: pageIdx,
+        totalPages: pages.length,
+        pageName: page.name,
+        results: batchResults,
+      });
+
+      globalBatchIdx++;
+    }
+
+    session.completedPages = pageIdx + 1;
+
+    emitProgress(sessionId, {
+      type: 'page_complete',
+      sessionId,
+      pageIndex: pageIdx,
+      totalPages: pages.length,
+      pageName: page.name,
+      completedNodes: session.completedNodes,
+      totalNodes: session.totalNodes,
+      message: `Page "${page.name}" complete`,
+    });
+  }
+
+  session.status = 'complete';
+  emitProgress(sessionId, {
+    type: 'all_complete',
+    sessionId,
+    completedNodes: session.completedNodes,
+    totalNodes: session.totalNodes,
+    results: allResults,
+  });
+}
+
+// ============================================================
+// Legacy flat-node processing (backward compatible)
+// ============================================================
+
+async function processLegacyBatches(
   sessionId: string,
   nodes: NodeMetadata[],
   figmaToken: string,
@@ -144,14 +488,12 @@ async function processBatches(
     batches.push(nodes.slice(i, i + batchSize));
   }
 
-  // ------------------------------------------------------------------
-  // 1. Export the full frame / root context image (once, for all batches)
-  // ------------------------------------------------------------------
+  // Export full frame context image (once)
   let frameBase64: string = '';
   const frameNodeId = rootNodeId || findTopLevelParent(nodes);
   if (frameNodeId) {
     try {
-      const frameBuf = await exportNodeImage(fileKey, figmaToken, frameNodeId, 1); // 1x for context
+      const frameBuf = await exportNodeImage(fileKey, figmaToken, frameNodeId, 1);
       frameBase64 = frameBuf.toString('base64');
     } catch (err: any) {
       console.warn('[name] Frame context image export failed:', err.message);
@@ -171,11 +513,8 @@ async function processBatches(
       message: `Processing batch ${batchIdx + 1} of ${batches.length}`,
     });
 
-    // ---------------------------------------------------------------
-    // 2. Export the batch area (clean, no SoM)
-    // ---------------------------------------------------------------
+    // Export batch area
     const parentNodeId = findCommonAncestor(batch);
-
     let imageBuffer: Buffer;
     try {
       imageBuffer = await exportNodeImage(fileKey, figmaToken, parentNodeId, config.exportScale);
@@ -195,9 +534,7 @@ async function processBatches(
       ...(batchIdx === 0 && frameBase64 ? { frameImageBase64: frameBase64 } : {}),
     });
 
-    // ---------------------------------------------------------------
-    // 3. Render SoM overlay (only current batch's nodes)
-    // ---------------------------------------------------------------
+    // Render SoM overlay
     const imgWidth = imageBuffer.readUInt32BE(16);
     const imgHeight = imageBuffer.readUInt32BE(20);
 
@@ -247,9 +584,7 @@ async function processBatches(
       cleanImageBase64: cleanBase64,
     });
 
-    // ---------------------------------------------------------------
-    // 4. Call VLM with TWO images: [frame context, SoM annotated]
-    // ---------------------------------------------------------------
+    // Call VLM
     const systemPrompt = buildSystemPrompt(globalContext, platform);
     const supplements: NodeSupplement[] = batch.map((node, i) => ({
       markId: batchIdx * batchSize + i + 1,
@@ -259,29 +594,11 @@ async function processBatches(
     }));
     const userPrompt = buildUserPrompt(supplements);
 
-    // Image list: frame context first, then annotated detail
     const vlmImages = frameBase64 ? [frameBase64, somBase64] : [somBase64];
 
     let vlmContent: string;
     try {
-      let result;
-      switch (vlmProvider) {
-        case 'claude-opus':
-          result = await callClaude(vlmApiKey, vlmImages, systemPrompt, userPrompt, 'claude-opus-4-6');
-          break;
-        case 'claude-sonnet':
-          result = await callClaude(vlmApiKey, vlmImages, systemPrompt, userPrompt, 'claude-sonnet-4-6');
-          break;
-        case 'gpt-5':
-          result = await callOpenAI(vlmApiKey, vlmImages, systemPrompt, userPrompt);
-          break;
-        case 'gemini-pro':
-          result = await callGemini(vlmApiKey, vlmImages, systemPrompt, userPrompt, 'gemini-3-pro-preview');
-          break;
-        case 'gemini-flash':
-        default:
-          result = await callGemini(vlmApiKey, vlmImages, systemPrompt, userPrompt, 'gemini-3-flash-preview');
-      }
+      const result = await callVLM(vlmProvider, vlmApiKey, vlmImages, systemPrompt, userPrompt);
       vlmContent = result.content;
     } catch (err: any) {
       console.error(`[name] VLM call failed for batch ${batchIdx}:`, err.message);
@@ -300,9 +617,7 @@ async function processBatches(
       totalBatches: batches.length,
     });
 
-    // ---------------------------------------------------------------
-    // 5. Parse response → results
-    // ---------------------------------------------------------------
+    // Parse response
     const expectedMarkIds = batch.map((_, i) => batchIdx * batchSize + i + 1);
     const parsedNamings = parseNamingResponse(vlmContent, expectedMarkIds);
 
@@ -340,31 +655,42 @@ async function processBatches(
   });
 }
 
-/**
- * Find the top-level parent of all nodes (for frame context image).
- * Walk up the parentId chain to find the shallowest common ancestor.
- */
+// ============================================================
+// Shared helpers
+// ============================================================
+
+async function callVLM(
+  vlmProvider: string,
+  vlmApiKey: string,
+  images: string[],
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<{ content: string }> {
+  switch (vlmProvider) {
+    case 'claude-opus':
+      return callClaude(vlmApiKey, images, systemPrompt, userPrompt, 'claude-opus-4-6');
+    case 'claude-sonnet':
+      return callClaude(vlmApiKey, images, systemPrompt, userPrompt, 'claude-sonnet-4-6');
+    case 'gpt-5':
+      return callOpenAI(vlmApiKey, images, systemPrompt, userPrompt);
+    case 'gemini-pro':
+      return callGemini(vlmApiKey, images, systemPrompt, userPrompt, 'gemini-3-pro-preview');
+    case 'gemini-flash':
+    default:
+      return callGemini(vlmApiKey, images, systemPrompt, userPrompt, 'gemini-3-flash-preview');
+  }
+}
+
 function findTopLevelParent(nodes: NodeMetadata[]): string | null {
   if (nodes.length === 0) return null;
-  // Pick the node with the smallest depth — its parent is the best frame context
   const shallowest = nodes.reduce((a, b) => (a.depth < b.depth ? a : b));
   return shallowest.parentId || shallowest.id;
 }
 
-/**
- * Find a common ancestor node ID for a batch of nodes.
- * If nodes share a parent, use that; otherwise use the first node's parent.
- */
 function findCommonAncestor(nodes: NodeMetadata[]): string {
   if (nodes.length === 1) return nodes[0].parentId || nodes[0].id;
-
-  // Check if all nodes share the same parent
   const parentIds = new Set(nodes.map((n) => n.parentId).filter(Boolean));
-  if (parentIds.size === 1) {
-    return [...parentIds][0]!;
-  }
-
-  // Fallback: use first node's parent
+  if (parentIds.size === 1) return [...parentIds][0]!;
   return nodes[0].parentId || nodes[0].id;
 }
 

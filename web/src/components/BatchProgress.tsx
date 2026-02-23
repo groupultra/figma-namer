@@ -1,6 +1,7 @@
 // ============================================================
 // Figma Namer - BatchProgress Component (Web Dashboard)
-// Real-time progress with 3-view image comparison:
+// Real-time progress with page-level + batch-level tracking
+// 3-view image comparison:
 //   Annotated (SoM) | Original (clean) | Full Frame (context)
 // ============================================================
 
@@ -20,6 +21,10 @@ interface BatchProgressProps {
   framePreviewImage: string | null;
   error: string | null;
   onCancel: () => void;
+  /** Page-level progress */
+  currentPage?: number;
+  totalPages?: number;
+  currentPageName?: string;
 }
 
 export const BatchProgress: React.FC<BatchProgressProps> = ({
@@ -33,6 +38,9 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({
   framePreviewImage,
   error,
   onCancel,
+  currentPage = 0,
+  totalPages = 0,
+  currentPageName = '',
 }) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<PreviewTab>('annotated');
@@ -56,6 +64,8 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({
     { key: 'frame', label: t('progress.tab.frame'), available: !!framePreviewImage },
   ];
 
+  const hasPages = totalPages > 0;
+
   return (
     <div style={styles.container}>
       <div style={styles.card}>
@@ -67,7 +77,29 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({
           </div>
         )}
 
-        {/* Progress bar */}
+        {/* Page progress (if available) */}
+        {hasPages && (
+          <div style={styles.pageProgressSection}>
+            <div style={styles.pageProgressHeader}>
+              <span style={styles.pageProgressLabel}>
+                {t('progress.page')} {currentPage + 1} / {totalPages}
+              </span>
+              {currentPageName && (
+                <span style={styles.pageProgressName}>{currentPageName}</span>
+              )}
+            </div>
+            <div style={styles.pageProgressTrack}>
+              <div
+                style={{
+                  ...styles.pageProgressFill,
+                  width: `${Math.round(((currentPage + 1) / totalPages) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Batch progress bar */}
         <div style={styles.progressSection}>
           <div style={styles.progressTrack}>
             <div
@@ -196,6 +228,47 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--color-danger)',
     lineHeight: '1.5',
   },
+  // Page progress
+  pageProgressSection: {
+    marginBottom: 16,
+    padding: '12px 14px',
+    background: 'var(--color-bg-secondary)',
+    borderRadius: 'var(--radius)',
+  },
+  pageProgressHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  pageProgressLabel: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--color-text)',
+  },
+  pageProgressName: {
+    fontSize: 12,
+    color: 'var(--color-text-secondary)',
+    fontStyle: 'italic' as const,
+    maxWidth: 200,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap' as const,
+  },
+  pageProgressTrack: {
+    width: '100%',
+    height: 6,
+    background: 'rgba(0,0,0,0.08)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  pageProgressFill: {
+    height: '100%',
+    background: '#6C5CE7',
+    borderRadius: 3,
+    transition: 'width 0.4s ease',
+  },
+  // Batch progress
   progressSection: {
     marginBottom: 20,
   },

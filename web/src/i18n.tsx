@@ -49,6 +49,10 @@ const translations = {
   'counter.back': { zh: '返回', en: 'Back' },
   'counter.start': { zh: '开始命名 {count} 个节点', en: 'Start Naming {count} Nodes' },
   'counter.starting': { zh: '启动中...', en: 'Starting...' },
+  'counter.pages': { zh: '页面', en: 'Pages' },
+  'counter.fileType': { zh: '文件类型', en: 'File Type' },
+  'counter.auxiliary': { zh: '辅助', en: 'Auxiliary' },
+  'counter.aiReasoning': { zh: 'AI 分析', en: 'AI Reasoning' },
 
   // BatchProgress
   'progress.title': { zh: 'AI 命名进行中', en: 'AI Naming in Progress' },
@@ -56,6 +60,8 @@ const translations = {
   'progress.nodesNamed': { zh: '已命名节点', en: 'Nodes Named' },
   'progress.processing': { zh: '处理中...', en: 'Processing...' },
   'progress.cancel': { zh: '取消', en: 'Cancel' },
+  'progress.page': { zh: '页面', en: 'Page' },
+  'progress.pageProgress': { zh: '页面进度', en: 'Page Progress' },
   'progress.tab.annotated': { zh: '标注图', en: 'Annotated' },
   'progress.tab.original': { zh: '原图', en: 'Original' },
   'progress.tab.frame': { zh: '全局', en: 'Full Frame' },
@@ -95,6 +101,9 @@ const translations = {
   'sse.vlmCalled': { zh: 'AI 模型已响应，正在解析结果...', en: 'AI model responded, parsing results...' },
   'sse.batchComplete': { zh: '批次 {n}/{total} 完成', en: 'Batch {n}/{total} complete' },
   'sse.allComplete': { zh: '全部批次完成！', en: 'All batches complete!' },
+  'sse.structureAnalysis': { zh: '正在分析文件结构...', en: 'Analyzing file structure...' },
+  'sse.structureComplete': { zh: '结构分析完成', en: 'Structure analysis complete' },
+  'sse.pageStarted': { zh: '开始处理页面: {name}', en: 'Starting page: {name}' },
 } as const;
 
 type TranslationKey = keyof typeof translations;
@@ -125,7 +134,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     (key: TranslationKey, vars?: Record<string, string | number>): string => {
       const entry = translations[key];
       if (!entry) return key;
-      let text = entry[lang] || entry['en'] || key;
+      let text: string = entry[lang] || entry['en'] || key;
       if (vars) {
         for (const [k, v] of Object.entries(vars)) {
           text = text.replace(`{${k}}`, String(v));

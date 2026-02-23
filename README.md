@@ -2,6 +2,8 @@
 
 AI-powered semantic layer naming for Figma. Supports Gemini 3, Claude 4.6, and GPT-5.2.
 
+**Agentic two-round pipeline**: Round 1 uses LLM to analyze file structure (pages vs noise), Round 2 names components per-page with 3-image context. Cuts cost from ~$50 to ~$2.60 and time from 30 min to 3 min on large files.
+
 Two ways to use: **Web Dashboard** (recommended) or **Figma Plugin** (in-editor).
 
 > **[中文文档](./README.zh-CN.md)**
@@ -34,10 +36,17 @@ Browser opens at `http://localhost:5173`. Then:
    - To target a specific frame, append `?node-id=1-2` to the URL
 3. **Choose AI model** — Gemini 3 Flash (default) / Gemini 3 Pro / Claude Sonnet / Claude Opus / GPT-5.2
 4. **Enter your API key** — for the chosen provider
-5. **Click "Analyze File"** — shows node count and type breakdown
-6. **Click "Start Naming"** — real-time progress as AI processes each batch
-7. **Review results** — search, filter, edit names inline
-8. **Export** — download as JSON or CSV
+5. **Click "Analyze File"** — AI analyzes the file structure:
+   - **Round 1 (Structure Analysis)**: Classifies file type (app screens / component library / icon library / mixed), identifies real pages vs noise (annotations, notes, dividers), lists nodes to name per page
+   - Shows file type badge, AI reasoning, and a page list with checkboxes
+   - Auxiliary elements (notes, arrows, dividers) are grayed out and excluded
+6. **Select pages to name** — check/uncheck pages, review node counts per page
+7. **Click "Start Naming"** — page-level + batch-level progress:
+   - **Round 2 (Per-page naming)**: Each page gets its own screenshot for context
+   - AI receives 3 images: full page, component grid, page highlight annotations
+   - Sibling components on the same page share context for consistent naming
+8. **Review results** — search, filter, edit names inline
+9. **Export** — download as JSON or CSV
 
 > Credentials are saved to localStorage for convenience (never sent anywhere except to the respective APIs).
 
@@ -98,6 +107,17 @@ Then update `apiEndpoint` in the plugin config.
 | `npm run dev:plugin` | Build plugin in watch mode |
 | `npm test` | Run tests |
 
+## Architecture
+
+```
+Round 0: Figma REST API → JSON tree
+Round 1: Tree summary → Gemini Flash (text-only, no images)
+         → file type, pages vs noise, node IDs to name
+Round 2: Per-page batched naming
+         → 3 images per VLM call: page full, component grid, page highlights
+         → siblings share context for consistent naming
+```
+
 ## Project Structure
 
 ```
@@ -106,14 +126,17 @@ figma-namer/
 │   └── src/
 │       ├── index.ts        # Server entry point (port 3456)
 │       ├── routes/         # API endpoints
-│       │   ├── analyze.ts  # POST /api/analyze
-│       │   ├── name.ts     # POST /api/name
+│       │   ├── analyze.ts  # POST /api/analyze (+ AI structure analysis)
+│       │   ├── name.ts     # POST /api/name (page-based + legacy)
 │       │   ├── progress.ts # GET /api/progress/:id (SSE)
 │       │   └── export.ts   # GET /api/export/:id
 │       ├── figma/          # Figma REST API client
+│       │   ├── client.ts   # File & image API
+│       │   ├── traversal.ts # Node traversal & extraction
+│       │   └── tree-summarizer.ts # Condensed tree for LLM
 │       ├── vlm/            # Claude, OpenAI, Gemini clients
-│       ├── som/            # Server-side SoM rendering
-│       └── session/        # Session management
+│       ├── som/            # SoM rendering, page highlights, component grid
+│       └── session/        # Session management (page-level tracking)
 ├── web/                    # React SPA (Vite)
 │   └── src/
 │       ├── App.tsx         # Main app state machine

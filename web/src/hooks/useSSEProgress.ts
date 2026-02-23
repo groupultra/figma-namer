@@ -1,10 +1,11 @@
 // ============================================================
 // Figma Namer - SSE Progress Hook
 // Listens to Server-Sent Events for real-time batch progress
+// Supports page-level and batch-level events
 // ============================================================
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { ProgressEvent, NamingResult } from '@shared/types';
+import type { ProgressEvent, NamingResult, StructureAnalysis } from '@shared/types';
 
 export interface UseSSEProgressReturn {
   isConnected: boolean;
@@ -22,6 +23,12 @@ export interface UseSSEProgressReturn {
   batchResults: NamingResult[];
   allComplete: boolean;
   error: string | null;
+  /** Page-level progress */
+  currentPage: number;
+  totalPages: number;
+  currentPageName: string;
+  /** Structure analysis result */
+  structureAnalysis: StructureAnalysis | null;
   connect: (sessionId: string) => void;
   disconnect: () => void;
 }
@@ -39,6 +46,10 @@ export function useSSEProgress(): UseSSEProgressReturn {
   const [batchResults, setBatchResults] = useState<NamingResult[]>([]);
   const [allComplete, setAllComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [currentPageName, setCurrentPageName] = useState('');
+  const [structureAnalysis, setStructureAnalysis] = useState<StructureAnalysis | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const disconnect = useCallback(() => {
@@ -63,6 +74,10 @@ export function useSSEProgress(): UseSSEProgressReturn {
     setBatchResults([]);
     setAllComplete(false);
     setError(null);
+    setCurrentPage(0);
+    setTotalPages(0);
+    setCurrentPageName('');
+    setStructureAnalysis(null);
 
     const es = new EventSource(`/api/progress/${sessionId}`);
     eventSourceRef.current = es;
@@ -73,16 +88,40 @@ export function useSSEProgress(): UseSSEProgressReturn {
 
     es.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data) as ProgressEvent & { type: string };
+        const data = JSON.parse(event.data) as ProgressEvent;
+        const eventType = data.type as string;
 
-        switch (data.type) {
+        switch (eventType) {
           case 'connected':
             setLatestMessage('Connected to server');
+            break;
+
+          case 'structure_analysis_started':
+            setLatestMessage(data.message ?? 'Analyzing file structure...');
+            break;
+
+          case 'structure_analysis_complete':
+            if (data.structureAnalysis) setStructureAnalysis(data.structureAnalysis);
+            setLatestMessage(data.message ?? 'Structure analysis complete');
+            break;
+
+          case 'page_started':
+            setCurrentPage(data.pageIndex ?? 0);
+            if (data.totalPages) setTotalPages(data.totalPages);
+            if (data.pageName) setCurrentPageName(data.pageName);
+            setLatestMessage(data.message ?? `Starting page: ${data.pageName}`);
+            break;
+
+          case 'page_complete':
+            setLatestMessage(data.message ?? `Page complete: ${data.pageName}`);
             break;
 
           case 'batch_started':
             setCurrentBatch(data.batchIndex ?? 0);
             setTotalBatches(data.totalBatches ?? 0);
+            if (data.pageIndex !== undefined) setCurrentPage(data.pageIndex);
+            if (data.totalPages) setTotalPages(data.totalPages);
+            if (data.pageName) setCurrentPageName(data.pageName);
             setLatestMessage(data.message ?? `Processing batch ${(data.batchIndex ?? 0) + 1}`);
             break;
 
@@ -108,9 +147,15 @@ export function useSSEProgress(): UseSSEProgressReturn {
             if (data.results) {
               setBatchResults((prev) => [...prev, ...data.results!]);
             }
-            setLatestMessage(
-              `Batch ${(data.batchIndex ?? 0) + 1} of ${data.totalBatches ?? 0} complete`,
-            );
+            if (data.pageName) {
+              setLatestMessage(
+                `Page "${data.pageName}" - Batch ${(data.batchIndex ?? 0) + 1}/${data.totalBatches ?? 0} complete`,
+              );
+            } else {
+              setLatestMessage(
+                `Batch ${(data.batchIndex ?? 0) + 1} of ${data.totalBatches ?? 0} complete`,
+              );
+            }
             break;
 
           case 'all_complete':
@@ -161,6 +206,10 @@ export function useSSEProgress(): UseSSEProgressReturn {
     batchResults,
     allComplete,
     error,
+    currentPage,
+    totalPages,
+    currentPageName,
+    structureAnalysis,
     connect,
     disconnect,
   };

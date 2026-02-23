@@ -206,3 +206,61 @@ function extractComponentProperties(node: FigmaNode): Record<string, string> {
 export function isDefaultName(name: string): boolean {
   return DEFAULT_NAME_PATTERNS.some((pattern) => pattern.test(name));
 }
+
+/**
+ * Find a node by ID in a tree of FigmaNodes (DFS).
+ */
+export function findNodeById(
+  rootNodes: FigmaNode[],
+  nodeId: string,
+): FigmaNode | null {
+  for (const root of rootNodes) {
+    const found = findNodeDFS(root, nodeId);
+    if (found) return found;
+  }
+  return null;
+}
+
+function findNodeDFS(node: FigmaNode, nodeId: string): FigmaNode | null {
+  if (node.id === nodeId) return node;
+  if (node.children) {
+    for (const child of node.children) {
+      const found = findNodeDFS(child, nodeId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract NodeMetadata for specific node IDs from a Figma tree.
+ * Used by the agentic flow where AI specifies which nodes to name.
+ */
+export function extractNodesById(
+  rootNodes: FigmaNode[],
+  targetIds: Set<string>,
+  config: NamerConfig,
+): NodeMetadata[] {
+  const results: NodeMetadata[] = [];
+  for (const root of rootNodes) {
+    collectTargetNodes(root, 0, null, targetIds, results);
+  }
+  return results;
+}
+
+function collectTargetNodes(
+  node: FigmaNode,
+  depth: number,
+  parentId: string | null,
+  targetIds: Set<string>,
+  results: NodeMetadata[],
+): void {
+  if (targetIds.has(node.id)) {
+    results.push(extractMetadata(node, depth, parentId));
+  }
+  if (node.children) {
+    for (const child of node.children) {
+      collectTargetNodes(child, depth + 1, node.id, targetIds, results);
+    }
+  }
+}
