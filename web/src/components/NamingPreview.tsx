@@ -6,6 +6,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import type { NamingResult } from '@shared/types';
 import { DEFAULT_NAME_PATTERNS } from '@shared/constants';
+import { useI18n } from '../i18n';
 
 interface NamingPreviewProps {
   results: NamingResult[];
@@ -38,6 +39,7 @@ export const NamingPreview: React.FC<NamingPreviewProps> = ({
   onDone,
   onBack,
 }) => {
+  const { t } = useI18n();
   const [selected, setSelected] = useState<Set<string>>(() =>
     new Set(results.map((r) => r.nodeId)),
   );
@@ -145,15 +147,15 @@ export const NamingPreview: React.FC<NamingPreviewProps> = ({
         {/* Top Toolbar */}
         <div style={styles.toolbar}>
           <div style={styles.toolbarLeft}>
-            <h2 style={styles.toolbarTitle}>Naming Results</h2>
+            <h2 style={styles.toolbarTitle}>{t('preview.title')}</h2>
             <span style={styles.count}>
-              {selectedCount} / {totalCount} selected
+              {t('preview.selected', { n: String(selectedCount), total: String(totalCount) })}
             </span>
           </div>
           <div style={styles.toolbarRight}>
-            <button style={styles.linkBtn} onClick={selectAll}>Select All</button>
+            <button style={styles.linkBtn} onClick={selectAll}>{t('preview.selectAll')}</button>
             <span style={styles.divider}>|</span>
-            <button style={styles.linkBtn} onClick={deselectAll}>Deselect All</button>
+            <button style={styles.linkBtn} onClick={deselectAll}>{t('preview.deselectAll')}</button>
           </div>
         </div>
 
@@ -163,7 +165,7 @@ export const NamingPreview: React.FC<NamingPreviewProps> = ({
             <input
               style={styles.searchInput}
               type="text"
-              placeholder="Search names..."
+              placeholder={t('preview.search')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -178,12 +180,12 @@ export const NamingPreview: React.FC<NamingPreviewProps> = ({
             value={filterMode}
             onChange={(e) => setFilterMode(e.target.value as FilterMode)}
           >
-            <option value="all">All ({totalCount})</option>
-            <option value="selected">Selected ({selectedCount})</option>
-            <option value="unselected">Unselected ({totalCount - selectedCount})</option>
-            <option value="edited">Edited ({Object.keys(editedNames).length})</option>
+            <option value="all">{t('preview.filterAll')} ({totalCount})</option>
+            <option value="selected">{t('preview.filterSelected')} ({selectedCount})</option>
+            <option value="unselected">{t('preview.filterUnselected')} ({totalCount - selectedCount})</option>
+            <option value="edited">{t('preview.filterEdited')} ({Object.keys(editedNames).length})</option>
             <option value="default-names">
-              Default Names ({results.filter((r) => isDefaultName(r.originalName)).length})
+              {t('preview.filterDefault')} ({results.filter((r) => isDefaultName(r.originalName)).length})
             </option>
           </select>
         </div>
@@ -193,8 +195,8 @@ export const NamingPreview: React.FC<NamingPreviewProps> = ({
           {filteredResults.length === 0 && (
             <div style={styles.emptyState}>
               {searchQuery || filterMode !== 'all'
-                ? 'No results match your filter.'
-                : 'No naming results available.'}
+                ? t('preview.noResults')
+                : t('preview.noData')}
             </div>
           )}
 
@@ -272,7 +274,7 @@ export const NamingPreview: React.FC<NamingPreviewProps> = ({
                     <span style={{ ...styles.confidenceText, color: CONFIDENCE_COLORS[confLevel] }}>
                       {Math.round(r.confidence * 100)}%
                     </span>
-                    {isEdited && <span style={styles.editedBadge}>edited</span>}
+                    {isEdited && <span style={styles.editedBadge}>{t('preview.edited')}</span>}
                   </div>
                 </div>
 
@@ -299,21 +301,21 @@ export const NamingPreview: React.FC<NamingPreviewProps> = ({
         <div style={styles.actionBar}>
           <div style={styles.exportBtns}>
             <button className="btn-outline" onClick={handleExportJson} style={{ fontSize: 12 }}>
-              Export JSON
+              {t('preview.exportJson')}
             </button>
             <button className="btn-outline" onClick={handleExportCsv} style={{ fontSize: 12 }}>
-              Export CSV
+              {t('preview.exportCsv')}
             </button>
             <button className="btn-outline" onClick={handleCopyJson} style={{ fontSize: 12 }}>
-              Copy JSON
+              {t('preview.copyJson')}
             </button>
           </div>
           <div style={styles.actionButtons}>
             <button className="btn-outline" onClick={onBack}>
-              New Analysis
+              {t('preview.newAnalysis')}
             </button>
             <button className="btn-success" onClick={onDone}>
-              Done
+              {t('preview.done')}
             </button>
           </div>
         </div>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Figma Namer - 使用说明</title>
+  <title>Figma Namer - 使用说明 / Documentation</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -166,6 +166,48 @@
     /* Two-col on wide screens */
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ===== Language toggle ===== */
+    body[data-lang="en"] .zh { display: none; }
+    body[data-lang="zh"] .en { display: none; }
+
+    .lang-toggle {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(255,255,255,0.15);
+      border-radius: 20px;
+      padding: 3px;
+      margin-top: 18px;
+      cursor: pointer;
+      user-select: none;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .lang-toggle .lang-btn {
+      padding: 5px 16px;
+      border-radius: 17px;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.7);
+      transition: all 0.25s ease;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+    .lang-toggle .lang-btn.active {
+      background: rgba(255,255,255,0.95);
+      color: #1a1a2e;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    }
+    .lang-toggle .lang-btn:not(.active):hover {
+      color: rgba(255,255,255,0.95);
+    }
+    .lang-divider {
+      width: 1px;
+      height: 16px;
+      background: rgba(255,255,255,0.3);
+      margin: 0 2px;
+    }
   </style>
 </head>
 <body>
@@ -174,11 +216,16 @@
 <div class="hero">
   <div class="hero-logo">N</div>
   <h1>Figma Namer</h1>
-  <p>AI 驱动的 Figma 图层语义化命名工具</p>
+  <p><span class="zh">AI 驱动的 Figma 图层语义化命名工具</span><span class="en">AI-powered semantic layer naming for Figma</span></p>
   <div class="hero-badges">
     <span class="hero-badge"><span class="dot"></span> Gemini 3</span>
     <span class="hero-badge"><span class="dot"></span> Claude 4.6</span>
     <span class="hero-badge"><span class="dot"></span> GPT-5.2</span>
+  </div>
+  <div class="lang-toggle" id="langToggle">
+    <span class="lang-btn" data-lang="zh">中文</span>
+    <span class="lang-divider"></span>
+    <span class="lang-btn" data-lang="en">EN</span>
   </div>
 </div>
 
@@ -186,21 +233,21 @@
 
   <!-- Two modes overview -->
   <div class="section">
-    <div class="section-title">两种使用方式</div>
+    <div class="section-title"><span class="zh">两种使用方式</span><span class="en">Two Ways to Use</span></div>
     <div class="two-col">
       <div class="card">
         <div class="mode-header">
           <div class="mode-icon web">🌐</div>
           <div>
-            <div class="mode-title">Web Dashboard <span class="recommended">推荐</span></div>
-            <div class="mode-subtitle">浏览器中独立使用，一键启动</div>
+            <div class="mode-title">Web Dashboard <span class="recommended"><span class="zh">推荐</span><span class="en">Recommended</span></span></div>
+            <div class="mode-subtitle"><span class="zh">浏览器中独立使用，一键启动</span><span class="en">Standalone browser app, one-click start</span></div>
           </div>
         </div>
         <ul style="font-size:13px; color:var(--text2); padding-left:18px;">
-          <li>无需 Figma 桌面端</li>
-          <li>无需部署后端 (Vercel)</li>
-          <li>支持五种 AI 模型 (Gemini 3 / Claude 4.6 / GPT-5.2)</li>
-          <li>实时进度条 + JSON/CSV 导出</li>
+          <li><span class="zh">无需 Figma 桌面端</span><span class="en">No Figma Desktop required</span></li>
+          <li><span class="zh">无需部署后端 (Vercel)</span><span class="en">No backend deployment (Vercel) needed</span></li>
+          <li><span class="zh">支持五种 AI 模型 (Gemini 3 / Claude 4.6 / GPT-5.2)</span><span class="en">5 AI models (Gemini 3 / Claude 4.6 / GPT-5.2)</span></li>
+          <li><span class="zh">实时进度条 + JSON/CSV 导出</span><span class="en">Real-time progress + JSON/CSV export</span></li>
         </ul>
       </div>
       <div class="card">
@@ -208,14 +255,14 @@
           <div class="mode-icon plugin">🔌</div>
           <div>
             <div class="mode-title">Figma Plugin</div>
-            <div class="mode-subtitle">在 Figma 内直接使用</div>
+            <div class="mode-subtitle"><span class="zh">在 Figma 内直接使用</span><span class="en">Use directly within Figma</span></div>
           </div>
         </div>
         <ul style="font-size:13px; color:var(--text2); padding-left:18px;">
-          <li>选中图层 → 自动遍历命名</li>
-          <li>一键应用命名到画布</li>
-          <li>支持撤销</li>
-          <li>需要配置 Vercel 后端</li>
+          <li><span class="zh">选中图层 → 自动遍历命名</span><span class="en">Select layers → auto traverse & name</span></li>
+          <li><span class="zh">一键应用命名到画布</span><span class="en">Apply names to canvas in one click</span></li>
+          <li><span class="zh">支持撤销</span><span class="en">Supports undo</span></li>
+          <li><span class="zh">需要配置 Vercel 后端</span><span class="en">Requires Vercel backend setup</span></li>
         </ul>
       </div>
     </div>
@@ -224,131 +271,131 @@
   <!-- Usage A: Web Dashboard -->
   <div class="section">
     <div class="section-title">
-      <span class="section-tag">用法 A</span>
-      Web Dashboard (浏览器)
+      <span class="section-tag"><span class="zh">用法 A</span><span class="en">Usage A</span></span>
+      <span class="zh">Web Dashboard (浏览器)</span><span class="en">Web Dashboard (Browser)</span>
     </div>
 
     <div class="card">
-      <h3>前置条件</h3>
+      <h3><span class="zh">前置条件</span><span class="en">Prerequisites</span></h3>
       <ul style="padding-left:18px; color:var(--text2); font-size:14px;">
         <li><strong>Node.js 18+</strong></li>
-        <li><strong>Figma Personal Access Token</strong> — 在 Figma → Settings → Personal Access Tokens 生成</li>
-        <li><strong>AI API Key</strong> — Anthropic / OpenAI / Google 任选其一</li>
+        <li><strong>Figma Personal Access Token</strong> — <span class="zh">在 Figma → Settings → Personal Access Tokens 生成</span><span class="en">Generate at Figma → Settings → Personal Access Tokens</span></li>
+        <li><strong>AI API Key</strong> — <span class="zh">Anthropic / OpenAI / Google 任选其一</span><span class="en">Any one of Anthropic / OpenAI / Google</span></li>
       </ul>
     </div>
 
     <div class="card">
-      <h3>启动</h3>
+      <h3><span class="zh">启动</span><span class="en">Quick Start</span></h3>
       <div class="code">
         <span class="cmd">git clone</span> https://github.com/groupultra/figma-namer.git<br>
         <span class="cmd">cd</span> figma-namer<br>
         <span class="cmd">npm install</span><br>
-        <span class="cmd">npm start</span> <span class="comment"># 自动打开 http://localhost:5173</span>
+        <span class="cmd">npm start</span> <span class="comment"><span class="zh"># 自动打开 http://localhost:5173</span><span class="en"># Opens automatically at http://localhost:5173</span></span>
       </div>
     </div>
 
     <div class="card">
-      <h3>操作步骤</h3>
+      <h3><span class="zh">操作步骤</span><span class="en">Steps</span></h3>
       <div class="steps">
         <div class="step">
           <div class="step-content">
-            <strong>输入 Figma Token</strong>
-            <div class="hint">Personal Access Token，形如 figd_xxxx... 首次输入后会自动保存</div>
+            <strong><span class="zh">输入 Figma Token</span><span class="en">Enter Figma Token</span></strong>
+            <div class="hint"><span class="zh">Personal Access Token，形如 figd_xxxx... 首次输入后会自动保存</span><span class="en">Personal Access Token, looks like figd_xxxx... Saved automatically after first entry</span></div>
           </div>
         </div>
         <div class="step">
           <div class="step-content">
-            <strong>粘贴 Figma 文件链接</strong>
-            <div class="hint">例: https://www.figma.com/design/xxxxx/MyFile — 可加 ?node-id=1-2 指定具体 Frame</div>
+            <strong><span class="zh">粘贴 Figma 文件链接</span><span class="en">Paste Figma file URL</span></strong>
+            <div class="hint"><span class="zh">例: https://www.figma.com/design/xxxxx/MyFile — 可加 ?node-id=1-2 指定具体 Frame</span><span class="en">e.g. https://www.figma.com/design/xxxxx/MyFile — add ?node-id=1-2 to target a specific Frame</span></div>
           </div>
         </div>
         <div class="step">
           <div class="step-content">
-            <strong>选择 AI 模型 + 输入 API Key</strong>
-            <div class="hint">五种模型可选，默认推荐 Gemini 3 Flash (快且便宜)</div>
+            <strong><span class="zh">选择 AI 模型 + 输入 API Key</span><span class="en">Choose AI model + enter API Key</span></strong>
+            <div class="hint"><span class="zh">五种模型可选，默认推荐 Gemini 3 Flash (快且便宜)</span><span class="en">5 models available, Gemini 3 Flash recommended by default (fast & cheap)</span></div>
           </div>
         </div>
         <div class="step">
           <div class="step-content">
-            <strong>点击 "Analyze File"</strong>
-            <div class="hint">分析文件树，显示可命名节点数量和类型分布</div>
+            <strong><span class="zh">点击 "Analyze File"</span><span class="en">Click "Analyze File"</span></strong>
+            <div class="hint"><span class="zh">分析文件树，显示可命名节点数量和类型分布</span><span class="en">Analyzes the file tree, shows nameable node count and type distribution</span></div>
           </div>
         </div>
         <div class="step">
           <div class="step-content">
-            <strong>点击 "Start Naming"</strong>
-            <div class="hint">AI 开始逐批处理，进度条实时更新，可以看到 SoM 标注预览图</div>
+            <strong><span class="zh">点击 "Start Naming"</span><span class="en">Click "Start Naming"</span></strong>
+            <div class="hint"><span class="zh">AI 开始逐批处理，进度条实时更新，可以看到 SoM 标注预览图</span><span class="en">AI processes in batches, progress bar updates in real time, SoM annotated previews visible</span></div>
           </div>
         </div>
         <div class="step">
           <div class="step-content">
-            <strong>审查结果 → 导出</strong>
-            <div class="hint">搜索/筛选/编辑名称，然后导出为 JSON 或 CSV</div>
+            <strong><span class="zh">审查结果 → 导出</span><span class="en">Review results → Export</span></strong>
+            <div class="hint"><span class="zh">搜索/筛选/编辑名称，然后导出为 JSON 或 CSV</span><span class="en">Search / filter / edit names, then export as JSON or CSV</span></div>
           </div>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <h3>架构</h3>
+      <h3><span class="zh">架构</span><span class="en">Architecture</span></h3>
       <div class="diagram">
-        <div class="diagram-box browser">浏览器<br><small>React SPA<br>:5173</small></div>
+        <div class="diagram-box browser"><span class="zh">浏览器</span><span class="en">Browser</span><br><small>React SPA<br>:5173</small></div>
         <div class="diagram-arrow">→</div>
-        <div class="diagram-box server">本地服务器<br><small>Express<br>:3456</small></div>
+        <div class="diagram-box server"><span class="zh">本地服务器</span><span class="en">Local Server</span><br><small>Express<br>:3456</small></div>
         <div class="diagram-arrow">→</div>
-        <div class="diagram-box external">Figma API<br><small>文件树 + 图片</small></div>
+        <div class="diagram-box external">Figma API<br><small><span class="zh">文件树 + 图片</span><span class="en">File tree + images</span></small></div>
       </div>
       <div class="diagram">
         <div style="width:200px"></div>
-        <div class="diagram-box server" style="opacity:0.7">本地服务器</div>
+        <div class="diagram-box server" style="opacity:0.7"><span class="zh">本地服务器</span><span class="en">Local Server</span></div>
         <div class="diagram-arrow">→</div>
-        <div class="diagram-box external">AI 模型<br><small>Claude / GPT / Gemini</small></div>
+        <div class="diagram-box external"><span class="zh">AI 模型</span><span class="en">AI Models</span><br><small>Claude / GPT / Gemini</small></div>
       </div>
     </div>
 
     <div class="note">
-      <strong>注意：</strong>Figma REST API 是只读的，无法直接重命名图层。导出 JSON 后可通过 Figma Plugin (用法 B) 粘贴并一键应用命名，或作为参考手动重命名。
+      <strong><span class="zh">注意：</span><span class="en">Note: </span></strong><span class="zh">Figma REST API 是只读的，无法直接重命名图层。导出 JSON 后可通过 Figma Plugin (用法 B) 粘贴并一键应用命名，或作为参考手动重命名。</span><span class="en">The Figma REST API is read-only and cannot rename layers directly. After exporting JSON, you can paste it into the Figma Plugin (Usage B) to apply names in one click, or rename manually using the export as reference.</span>
     </div>
   </div>
 
   <!-- Usage B: Figma Plugin -->
   <div class="section">
     <div class="section-title">
-      <span class="section-tag green">用法 B</span>
-      Figma Plugin (编辑器内)
+      <span class="section-tag green"><span class="zh">用法 B</span><span class="en">Usage B</span></span>
+      <span class="zh">Figma Plugin (编辑器内)</span><span class="en">Figma Plugin (In-Editor)</span>
     </div>
 
     <div class="card">
-      <h3>安装插件</h3>
+      <h3><span class="zh">安装插件</span><span class="en">Install Plugin</span></h3>
       <div class="code">
-        <span class="cmd">npm run build:plugin</span> <span class="comment"># 构建插件到 dist/</span>
+        <span class="cmd">npm run build:plugin</span> <span class="comment"><span class="zh"># 构建插件到 dist/</span><span class="en"># Build plugin to dist/</span></span>
       </div>
       <div class="steps" style="margin-top:12px;">
         <div class="step">
           <div class="step-content">
-            <strong>打开 Figma Desktop</strong>
+            <strong><span class="zh">打开 Figma Desktop</span><span class="en">Open Figma Desktop</span></strong>
             <div class="hint">Plugins → Development → Import plugin from manifest</div>
           </div>
         </div>
         <div class="step">
           <div class="step-content">
-            <strong>选择项目根目录的 manifest.json</strong>
+            <strong><span class="zh">选择项目根目录的 manifest.json</span><span class="en">Select manifest.json from the project root</span></strong>
           </div>
         </div>
         <div class="step">
           <div class="step-content">
-            <strong>在画布上选中 Frame → 打开插件 → Start Naming</strong>
+            <strong><span class="zh">在画布上选中 Frame → 打开插件 → Start Naming</span><span class="en">Select a Frame on canvas → open plugin → Start Naming</span></strong>
           </div>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <h3>自建后端 (可选)</h3>
+      <h3><span class="zh">自建后端 (可选)</span><span class="en">Self-host Backend (Optional)</span></h3>
       <div class="code">
         <span class="cmd">cd</span> backend<br>
         <span class="cmd">npm install</span><br>
-        <span class="comment"># 设置环境变量: ANTHROPIC_API_KEY 和/或 OPENAI_API_KEY</span><br>
+        <span class="comment"><span class="zh"># 设置环境变量: ANTHROPIC_API_KEY 和/或 OPENAI_API_KEY</span><span class="en"># Set env vars: ANTHROPIC_API_KEY and/or OPENAI_API_KEY</span></span><br>
         <span class="cmd">vercel dev</span>
       </div>
     </div>
@@ -357,22 +404,22 @@
   <!-- Scripts reference -->
   <div class="section">
     <div class="section-title">
-      <span class="section-tag purple">参考</span>
-      命令速查
+      <span class="section-tag purple"><span class="zh">参考</span><span class="en">Reference</span></span>
+      <span class="zh">命令速查</span><span class="en">Commands</span>
     </div>
     <div class="card" style="padding:0; overflow:hidden;">
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>命令</th><th>说明</th></tr>
+            <tr><th><span class="zh">命令</span><span class="en">Command</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr>
           </thead>
           <tbody>
-            <tr><td><code>npm start</code></td><td>启动 Web Dashboard (服务器 + 前端)</td></tr>
-            <tr><td><code>npm run start:server</code></td><td>仅启动 Express 服务器</td></tr>
-            <tr><td><code>npm run start:web</code></td><td>仅启动 Vite 前端</td></tr>
-            <tr><td><code>npm run build:plugin</code></td><td>构建 Figma 插件</td></tr>
-            <tr><td><code>npm run dev:plugin</code></td><td>开发模式构建插件 (watch)</td></tr>
-            <tr><td><code>npm test</code></td><td>运行测试</td></tr>
+            <tr><td><code>npm start</code></td><td><span class="zh">启动 Web Dashboard (服务器 + 前端)</span><span class="en">Start Web Dashboard (server + frontend)</span></td></tr>
+            <tr><td><code>npm run start:server</code></td><td><span class="zh">仅启动 Express 服务器</span><span class="en">Start Express server only</span></td></tr>
+            <tr><td><code>npm run start:web</code></td><td><span class="zh">仅启动 Vite 前端</span><span class="en">Start Vite frontend only</span></td></tr>
+            <tr><td><code>npm run build:plugin</code></td><td><span class="zh">构建 Figma 插件</span><span class="en">Build Figma plugin</span></td></tr>
+            <tr><td><code>npm run dev:plugin</code></td><td><span class="zh">开发模式构建插件 (watch)</span><span class="en">Build plugin in dev mode (watch)</span></td></tr>
+            <tr><td><code>npm test</code></td><td><span class="zh">运行测试</span><span class="en">Run tests</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -383,20 +430,20 @@
   <div class="section">
     <div class="section-title">
       <span class="section-tag orange">AI</span>
-      支持的模型
+      <span class="zh">支持的模型</span><span class="en">Supported Models</span>
     </div>
     <div class="card" style="padding:0; overflow:hidden;">
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>提供商</th><th>模型</th><th>特点</th></tr>
+            <tr><th><span class="zh">提供商</span><span class="en">Provider</span></th><th><span class="zh">模型</span><span class="en">Model</span></th><th><span class="zh">特点</span><span class="en">Best for</span></th></tr>
           </thead>
           <tbody>
-            <tr><td><strong>Google</strong></td><td>gemini-3-flash-preview</td><td>速度快、成本低 <span style="color:#E65100;font-weight:600;">默认推荐</span></td></tr>
-            <tr><td><strong>Google</strong></td><td>gemini-3-pro-preview</td><td>最强推理，100 万 token 上下文</td></tr>
-            <tr><td><strong>Anthropic</strong></td><td>claude-sonnet-4-6</td><td>均衡之选，命名质量高</td></tr>
-            <tr><td><strong>Anthropic</strong></td><td>claude-opus-4-6</td><td>最强综合能力</td></tr>
-            <tr><td><strong>OpenAI</strong></td><td>gpt-5.2</td><td>最强视觉理解</td></tr>
+            <tr><td><strong>Google</strong></td><td>gemini-3-flash-preview</td><td><span class="zh">速度快、成本低 <span style="color:#E65100;font-weight:600;">默认推荐</span></span><span class="en">Fast & cheap <span style="color:#E65100;font-weight:600;">Default</span></span></td></tr>
+            <tr><td><strong>Google</strong></td><td>gemini-3-pro-preview</td><td><span class="zh">最强推理，100 万 token 上下文</span><span class="en">Best reasoning, 1M token context</span></td></tr>
+            <tr><td><strong>Anthropic</strong></td><td>claude-sonnet-4-6</td><td><span class="zh">均衡之选，命名质量高</span><span class="en">Balanced, high naming quality</span></td></tr>
+            <tr><td><strong>Anthropic</strong></td><td>claude-opus-4-6</td><td><span class="zh">最强综合能力</span><span class="en">Best overall capability</span></td></tr>
+            <tr><td><strong>OpenAI</strong></td><td>gpt-5.2</td><td><span class="zh">最强视觉理解</span><span class="en">Best visual understanding</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -409,6 +456,45 @@
   <p>Figma Namer — MIT License</p>
   <p style="margin-top:4px;"><a href="https://github.com/groupultra/figma-namer">GitHub</a></p>
 </div>
+
+<script>
+(function() {
+  var STORAGE_KEY = 'figma-namer-lang';
+
+  function detectLang() {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (saved === 'zh' || saved === 'en') return saved;
+    var nav = (navigator.language || navigator.userLanguage || '').toLowerCase();
+    return nav.startsWith('zh') ? 'zh' : 'en';
+  }
+
+  function setLang(lang) {
+    document.body.setAttribute('data-lang', lang);
+    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+    localStorage.setItem(STORAGE_KEY, lang);
+    var btns = document.querySelectorAll('#langToggle .lang-btn');
+    btns.forEach(function(btn) {
+      if (btn.getAttribute('data-lang') === lang) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+
+  // Initialize
+  setLang(detectLang());
+
+  // Toggle click handler
+  var toggle = document.getElementById('langToggle');
+  toggle.addEventListener('click', function(e) {
+    var btn = e.target.closest('.lang-btn');
+    if (!btn) return;
+    var lang = btn.getAttribute('data-lang');
+    if (lang) setLang(lang);
+  });
+})();
+</script>
 
 </body>
 </html>

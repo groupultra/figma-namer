@@ -5,6 +5,7 @@
 // ============================================================
 
 import React, { useMemo, useState } from 'react';
+import { useI18n } from '../i18n';
 
 type PreviewTab = 'annotated' | 'original' | 'frame';
 
@@ -33,6 +34,7 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({
   error,
   onCancel,
 }) => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<PreviewTab>('annotated');
 
   const progressPercent = useMemo(() => {
@@ -49,15 +51,15 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({
       : framePreviewImage;
 
   const tabs: Array<{ key: PreviewTab; label: string; available: boolean }> = [
-    { key: 'annotated', label: 'Annotated', available: !!somPreviewImage },
-    { key: 'original', label: 'Original', available: !!cleanPreviewImage },
-    { key: 'frame', label: 'Full Frame', available: !!framePreviewImage },
+    { key: 'annotated', label: t('progress.tab.annotated'), available: !!somPreviewImage },
+    { key: 'original', label: t('progress.tab.original'), available: !!cleanPreviewImage },
+    { key: 'frame', label: t('progress.tab.frame'), available: !!framePreviewImage },
   ];
 
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h2 style={styles.title}>AI Naming in Progress</h2>
+        <h2 style={styles.title}>{t('progress.title')}</h2>
 
         {error && (
           <div style={styles.errorBox}>
@@ -87,13 +89,13 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({
             <span style={styles.statNumber}>
               {currentBatch + 1} / {totalBatches || '?'}
             </span>
-            <span style={styles.statLabel}>Batches</span>
+            <span style={styles.statLabel}>{t('progress.batches')}</span>
           </div>
           <div style={styles.stat}>
             <span style={styles.statNumber}>
               {completedNodes} / {totalNodes || '?'}
             </span>
-            <span style={styles.statLabel}>Nodes Named</span>
+            <span style={styles.statLabel}>{t('progress.nodesNamed')}</span>
           </div>
         </div>
 
@@ -138,9 +140,9 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({
 
             {/* Caption */}
             <div style={styles.caption}>
-              {activeTab === 'annotated' && 'Numbered labels mark elements being named in this batch'}
-              {activeTab === 'original' && 'Original screenshot without markup — for comparison'}
-              {activeTab === 'frame' && 'Full frame context — the AI sees this alongside the annotations'}
+              {activeTab === 'annotated' && t('progress.caption.annotated')}
+              {activeTab === 'original' && t('progress.caption.original')}
+              {activeTab === 'frame' && t('progress.caption.frame')}
             </div>
           </div>
         )}
@@ -148,13 +150,13 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({
         {/* Spinner + message */}
         <div style={styles.spinnerSection}>
           <div style={styles.spinner} />
-          <span style={styles.spinnerText}>Processing...</span>
+          <span style={styles.spinnerText}>{t('progress.processing')}</span>
         </div>
 
         {/* Cancel */}
         <div style={styles.footer}>
           <button className="btn-outline" onClick={onCancel}>
-            Cancel
+            {t('progress.cancel')}
           </button>
         </div>
       </div>

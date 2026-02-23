@@ -5,6 +5,7 @@
 
 import React from 'react';
 import type { AnalyzeResult } from '@shared/types';
+import { useI18n } from '../i18n';
 
 interface NodeCounterProps {
   result: AnalyzeResult;
@@ -19,6 +20,7 @@ export const NodeCounter: React.FC<NodeCounterProps> = ({
   onBack,
   isNaming,
 }) => {
+  const { t } = useI18n();
   const sortedTypes = Object.entries(result.nodesByType).sort((a, b) => b[1] - a[1]);
 
   return (
@@ -26,7 +28,7 @@ export const NodeCounter: React.FC<NodeCounterProps> = ({
       <div style={styles.card}>
         {/* Header */}
         <div style={styles.header}>
-          <h2 style={styles.title}>Analysis Complete</h2>
+          <h2 style={styles.title}>{t('counter.title')}</h2>
           <p style={styles.fileName}>{result.rootName}</p>
         </div>
 
@@ -34,21 +36,21 @@ export const NodeCounter: React.FC<NodeCounterProps> = ({
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>
             <span style={styles.statNumber}>{result.totalNodes}</span>
-            <span style={styles.statLabel}>Nameable Nodes</span>
+            <span style={styles.statLabel}>{t('counter.nameableNodes')}</span>
           </div>
           <div style={styles.statCard}>
             <span style={styles.statNumber}>{result.estimatedBatches}</span>
-            <span style={styles.statLabel}>Estimated Batches</span>
+            <span style={styles.statLabel}>{t('counter.estimatedBatches')}</span>
           </div>
           <div style={styles.statCard}>
             <span style={styles.statNumber}>{sortedTypes.length}</span>
-            <span style={styles.statLabel}>Node Types</span>
+            <span style={styles.statLabel}>{t('counter.nodeTypes')}</span>
           </div>
         </div>
 
         {/* Type Breakdown */}
         <div style={styles.breakdownSection}>
-          <h3 style={styles.sectionTitle}>Nodes by Type</h3>
+          <h3 style={styles.sectionTitle}>{t('counter.byType')}</h3>
           <div style={styles.typeList}>
             {sortedTypes.map(([type, count]) => (
               <div key={type} style={styles.typeRow}>
@@ -70,7 +72,7 @@ export const NodeCounter: React.FC<NodeCounterProps> = ({
         {/* Actions */}
         <div style={styles.actions}>
           <button className="btn-outline" onClick={onBack}>
-            Back
+            {t('counter.back')}
           </button>
           <button
             className="btn-primary"
@@ -78,7 +80,7 @@ export const NodeCounter: React.FC<NodeCounterProps> = ({
             onClick={onStartNaming}
             disabled={result.totalNodes === 0 || isNaming}
           >
-            {isNaming ? 'Starting...' : `Start Naming ${result.totalNodes} Nodes`}
+            {isNaming ? t('counter.starting') : t('counter.start', { count: String(result.totalNodes) })}
           </button>
         </div>
       </div>

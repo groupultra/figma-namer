@@ -9,9 +9,11 @@ import { NodeCounter } from './components/NodeCounter';
 import { BatchProgress } from './components/BatchProgress';
 import { NamingPreview } from './components/NamingPreview';
 import { useNamingFlow } from './hooks/useNamingFlow';
+import { useI18n } from './i18n';
 import type { NamerConfig } from '@shared/types';
 
 export const App: React.FC = () => {
+  const { t } = useI18n();
   const flow = useNamingFlow();
 
   // Store credentials for passing between steps
@@ -134,12 +136,12 @@ export const App: React.FC = () => {
             <path d="M15 24L21 30L33 18" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <h2 style={styles.centerTitle}>Naming Complete!</h2>
+        <h2 style={styles.centerTitle}>{t('app.complete')}</h2>
         <p style={styles.centerSubtext}>
-          Your naming results have been exported. Use the companion Figma plugin to apply them.
+          {t('app.completeHint')}
         </p>
         <button className="btn-primary" onClick={flow.reset} style={{ marginTop: 16 }}>
-          Start New Session
+          {t('app.newSession')}
         </button>
       </div>
     );

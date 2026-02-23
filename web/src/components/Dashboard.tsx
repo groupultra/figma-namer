@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import type { NamerConfig } from '@shared/types';
 import { DEFAULT_CONFIG } from '@shared/types';
+import { useI18n, LangToggle } from '../i18n';
 
 interface DashboardProps {
   onAnalyze: (figmaUrl: string, figmaToken: string, config?: Partial<NamerConfig>) => void;
@@ -28,6 +29,7 @@ const LS_VLM_PROVIDER_KEY = 'figma-namer-vlm-provider';
 const LS_VLM_KEY_PREFIX = 'figma-namer-vlm-key-';
 
 export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, error }) => {
+  const { t } = useI18n();
   const [figmaToken, setFigmaToken] = useState(() => localStorage.getItem(LS_TOKEN_KEY) || '');
   const [figmaUrl, setFigmaUrl] = useState('');
   const [vlmProvider, setVlmProvider] = useState(() => localStorage.getItem(LS_VLM_PROVIDER_KEY) || 'gemini-flash');
@@ -81,10 +83,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
               <rect width="32" height="32" rx="8" fill="#0D99FF" />
               <text x="16" y="21" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold">N</text>
             </svg>
-            <div>
-              <h1 style={styles.title}>Figma Namer</h1>
-              <p style={styles.subtitle}>AI-powered semantic layer naming</p>
+            <div style={{ flex: 1 }}>
+              <h1 style={styles.title}>{t('dashboard.title')}</h1>
+              <p style={styles.subtitle}>{t('dashboard.subtitle')}</p>
             </div>
+            <LangToggle />
           </div>
         </div>
 
@@ -97,7 +100,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
 
         {/* Figma Token */}
         <div style={styles.field}>
-          <label style={styles.label}>Figma Personal Access Token</label>
+          <label style={styles.label}>{t('dashboard.figmaToken')}</label>
           <input
             type="password"
             placeholder="figd_xxxxxxxxxxxx"
@@ -106,13 +109,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
             style={styles.input}
           />
           <span style={styles.hint}>
-            Get from Figma Settings &gt; Personal Access Tokens
+            {t('dashboard.figmaTokenHint')}
           </span>
         </div>
 
         {/* Figma URL */}
         <div style={styles.field}>
-          <label style={styles.label}>Figma File or Page URL</label>
+          <label style={styles.label}>{t('dashboard.figmaUrl')}</label>
           <input
             type="url"
             placeholder="https://www.figma.com/design/xxxxx/..."
@@ -121,13 +124,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
             style={styles.input}
           />
           <span style={styles.hint}>
-            Paste a file URL, or add ?node-id=X-Y to target a specific frame
+            {t('dashboard.figmaUrlHint')}
           </span>
         </div>
 
         {/* VLM Provider */}
         <div style={styles.field}>
-          <label style={styles.label}>AI Model</label>
+          <label style={styles.label}>{t('dashboard.aiModel')}</label>
           <div style={styles.providerGrid}>
             {VLM_PROVIDERS.map((p) => (
               <button
@@ -149,11 +152,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
         {/* VLM API Key */}
         <div style={styles.field}>
           <label style={styles.label}>
-            {vlmProvider.startsWith('claude') ? 'Anthropic' : vlmProvider.startsWith('gemini') ? 'Google' : 'OpenAI'} API Key
+            {vlmProvider.startsWith('claude') ? 'Anthropic' : vlmProvider.startsWith('gemini') ? 'Google' : 'OpenAI'} {t('dashboard.apiKey')}
           </label>
           <input
             type="password"
-            placeholder={`Enter your ${vlmProvider.startsWith('claude') ? 'Anthropic' : vlmProvider.startsWith('gemini') ? 'Google AI' : 'OpenAI'} API key`}
+            placeholder={t(vlmProvider.startsWith('claude') ? 'dashboard.apiKeyPlaceholder.anthropic' : vlmProvider.startsWith('gemini') ? 'dashboard.apiKeyPlaceholder.google' : 'dashboard.apiKeyPlaceholder.openai')}
             value={vlmApiKey}
             onChange={(e) => setVlmApiKey(e.target.value)}
             style={styles.input}
@@ -162,9 +165,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
 
         {/* Global Context */}
         <div style={styles.field}>
-          <label style={styles.label}>Global Context <span style={styles.optional}>(optional)</span></label>
+          <label style={styles.label}>{t('dashboard.globalContext')} <span style={styles.optional}>{t('dashboard.optional')}</span></label>
           <textarea
-            placeholder='e.g. "E-commerce checkout flow - Mobile app"'
+            placeholder={t('dashboard.globalContextPlaceholder')}
             value={globalContext}
             onChange={(e) => setGlobalContext(e.target.value)}
             rows={2}
@@ -174,7 +177,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
 
         {/* Platform */}
         <div style={styles.field}>
-          <label style={styles.label}>Platform</label>
+          <label style={styles.label}>{t('dashboard.platform')}</label>
           <div style={styles.platformRow}>
             {PLATFORMS.map((p) => (
               <button
@@ -197,12 +200,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
             style={styles.advancedToggle}
             onClick={() => setShowAdvanced(!showAdvanced)}
           >
-            {showAdvanced ? '\u25BC' : '\u25B6'} Advanced Settings
+            {showAdvanced ? '\u25BC' : '\u25B6'} {t('dashboard.advanced')}
           </button>
           {showAdvanced && (
             <div style={styles.advancedPanel}>
               <div style={styles.configRow}>
-                <label>Batch Size</label>
+                <label>{t('dashboard.batchSize')}</label>
                 <input
                   type="number"
                   min={1}
@@ -213,7 +216,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
                 />
               </div>
               <div style={styles.configRow}>
-                <label>Export Scale</label>
+                <label>{t('dashboard.exportScale')}</label>
                 <select
                   value={exportScale}
                   onChange={(e) => setExportScale(Number(e.target.value))}
@@ -235,7 +238,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAnalyze, isAnalyzing, er
           disabled={!canSubmit}
           onClick={handleAnalyze}
         >
-          {isAnalyzing ? 'Analyzing...' : 'Analyze File'}
+          {isAnalyzing ? t('dashboard.analyzing') : t('dashboard.analyze')}
         </button>
       </div>
     </div>
