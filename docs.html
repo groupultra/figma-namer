@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Figma Namer - 使用说明</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --blue: #0D99FF;
+      --blue-dark: #0b85e0;
+      --green: #14AE5C;
+      --orange: #FF8C00;
+      --red: #FF4040;
+      --purple: #6C5CE7;
+      --bg: #f8f9fb;
+      --card: #ffffff;
+      --text: #1a1a2e;
+      --text2: #666;
+      --text3: #999;
+      --border: #e8e8ec;
+      --radius: 12px;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, #0D99FF 0%, #6C5CE7 100%);
+      color: white;
+      padding: 60px 24px 48px;
+      text-align: center;
+    }
+    .hero-logo {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 64px; height: 64px; background: rgba(255,255,255,0.2);
+      border-radius: 16px; font-size: 32px; font-weight: 800; margin-bottom: 16px;
+    }
+    .hero h1 { font-size: 36px; font-weight: 800; margin-bottom: 8px; }
+    .hero p { font-size: 17px; opacity: 0.9; max-width: 500px; margin: 0 auto; }
+    .hero-badges { display: flex; justify-content: center; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.2); border-radius: 20px;
+      padding: 6px 14px; font-size: 13px; font-weight: 500;
+    }
+    .hero-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; }
+
+    /* Container */
+    .container { max-width: 800px; margin: 0 auto; padding: 0 20px; }
+
+    /* Section */
+    .section { margin: 40px 0; }
+    .section-title {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 22px; font-weight: 700; margin-bottom: 20px;
+    }
+    .section-tag {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--blue); color: white; font-size: 12px; font-weight: 700;
+      padding: 3px 10px; border-radius: 12px; letter-spacing: 0.5px;
+    }
+    .section-tag.green { background: var(--green); }
+    .section-tag.orange { background: var(--orange); }
+    .section-tag.purple { background: var(--purple); }
+
+    /* Card */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+
+    /* Usage card (mode A / B) */
+    .mode-header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+    }
+    .mode-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; color: white; flex-shrink: 0;
+    }
+    .mode-icon.web { background: linear-gradient(135deg, #0D99FF, #6C5CE7); }
+    .mode-icon.plugin { background: linear-gradient(135deg, #14AE5C, #0D99FF); }
+    .mode-title { font-size: 18px; font-weight: 700; }
+    .mode-subtitle { font-size: 13px; color: var(--text2); }
+    .recommended {
+      display: inline-block; background: #FFF3E0; color: #E65100;
+      font-size: 11px; font-weight: 700; padding: 2px 8px;
+      border-radius: 4px; margin-left: 8px; vertical-align: middle;
+    }
+
+    /* Steps */
+    .steps { counter-reset: step; }
+    .step {
+      display: flex; gap: 14px; margin-bottom: 14px;
+      padding: 14px 16px; background: var(--bg); border-radius: 8px;
+    }
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      flex-shrink: 0; width: 28px; height: 28px;
+      background: var(--blue); color: white; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+    }
+    .step-content { flex: 1; }
+    .step-content strong { color: var(--text); }
+    .step-content .hint { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+    /* Code block */
+    .code {
+      background: #1e1e2e; color: #cdd6f4; border-radius: 8px;
+      padding: 16px 20px; font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 14px; line-height: 1.6; overflow-x: auto;
+      margin: 12px 0;
+    }
+    .code .comment { color: #6c7086; }
+    .code .cmd { color: #a6e3a1; }
+    .code .url { color: #89b4fa; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; margin: 12px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; padding: 10px 14px; background: var(--bg); font-weight: 600; border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    td code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+
+    /* Architecture diagram */
+    .diagram {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; padding: 20px; flex-wrap: wrap;
+    }
+    .diagram-box {
+      padding: 12px 18px; border-radius: 8px; text-align: center;
+      font-size: 13px; font-weight: 600; min-width: 100px;
+    }
+    .diagram-box.browser { background: #E3F2FD; color: #1565C0; border: 1px solid #90CAF9; }
+    .diagram-box.server { background: #F3E5F5; color: #7B1FA2; border: 1px solid #CE93D8; }
+    .diagram-box.external { background: #FFF3E0; color: #E65100; border: 1px solid #FFCC80; }
+    .diagram-arrow { font-size: 20px; color: var(--text3); }
+
+    /* Note */
+    .note {
+      background: #FFFDE7; border-left: 4px solid #FFB300;
+      padding: 12px 16px; border-radius: 0 8px 8px 0;
+      font-size: 13px; color: #5D4037; margin: 12px 0;
+    }
+
+    /* Footer */
+    .footer { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 13px; }
+    .footer a { color: var(--blue); text-decoration: none; }
+
+    /* Two-col on wide screens */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-logo">N</div>
+  <h1>Figma Namer</h1>
+  <p>AI 驱动的 Figma 图层语义化命名工具</p>
+  <div class="hero-badges">
+    <span class="hero-badge"><span class="dot"></span> Claude</span>
+    <span class="hero-badge"><span class="dot"></span> GPT-4o</span>
+    <span class="hero-badge"><span class="dot"></span> Gemini</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Two modes overview -->
+  <div class="section">
+    <div class="section-title">两种使用方式</div>
+    <div class="two-col">
+      <div class="card">
+        <div class="mode-header">
+          <div class="mode-icon web">🌐</div>
+          <div>
+            <div class="mode-title">Web Dashboard <span class="recommended">推荐</span></div>
+            <div class="mode-subtitle">浏览器中独立使用，一键启动</div>
+          </div>
+        </div>
+        <ul style="font-size:13px; color:var(--text2); padding-left:18px;">
+          <li>无需 Figma 桌面端</li>
+          <li>无需部署后端 (Vercel)</li>
+          <li>支持三种 AI (Claude / GPT-4o / Gemini)</li>
+          <li>实时进度条 + JSON/CSV 导出</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="mode-header">
+          <div class="mode-icon plugin">🔌</div>
+          <div>
+            <div class="mode-title">Figma Plugin</div>
+            <div class="mode-subtitle">在 Figma 内直接使用</div>
+          </div>
+        </div>
+        <ul style="font-size:13px; color:var(--text2); padding-left:18px;">
+          <li>选中图层 → 自动遍历命名</li>
+          <li>一键应用命名到画布</li>
+          <li>支持撤销</li>
+          <li>需要配置 Vercel 后端</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Usage A: Web Dashboard -->
+  <div class="section">
+    <div class="section-title">
+      <span class="section-tag">用法 A</span>
+      Web Dashboard (浏览器)
+    </div>
+
+    <div class="card">
+      <h3>前置条件</h3>
+      <ul style="padding-left:18px; color:var(--text2); font-size:14px;">
+        <li><strong>Node.js 18+</strong></li>
+        <li><strong>Figma Personal Access Token</strong> — 在 Figma → Settings → Personal Access Tokens 生成</li>
+        <li><strong>AI API Key</strong> — Anthropic / OpenAI / Google 任选其一</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>启动</h3>
+      <div class="code">
+        <span class="cmd">git clone</span> https://github.com/groupultra/figma-namer.git<br>
+        <span class="cmd">cd</span> figma-namer<br>
+        <span class="cmd">npm install</span><br>
+        <span class="cmd">npm start</span> <span class="comment"># 自动打开 http://localhost:5173</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>操作步骤</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-content">
+            <strong>输入 Figma Token</strong>
+            <div class="hint">Personal Access Token，形如 figd_xxxx... 首次输入后会自动保存</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong>粘贴 Figma 文件链接</strong>
+            <div class="hint">例: https://www.figma.com/design/xxxxx/MyFile — 可加 ?node-id=1-2 指定具体 Frame</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong>选择 AI 模型 + 输入 API Key</strong>
+            <div class="hint">Claude (最精准) / GPT-4o (综合) / Gemini (快且便宜)</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong>点击 "Analyze File"</strong>
+            <div class="hint">分析文件树，显示可命名节点数量和类型分布</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong>点击 "Start Naming"</strong>
+            <div class="hint">AI 开始逐批处理，进度条实时更新，可以看到 SoM 标注预览图</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong>审查结果 → 导出</strong>
+            <div class="hint">搜索/筛选/编辑名称，然后导出为 JSON 或 CSV</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>架构</h3>
+      <div class="diagram">
+        <div class="diagram-box browser">浏览器<br><small>React SPA<br>:5173</small></div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box server">本地服务器<br><small>Express<br>:3456</small></div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box external">Figma API<br><small>文件树 + 图片</small></div>
+      </div>
+      <div class="diagram">
+        <div style="width:200px"></div>
+        <div class="diagram-box server" style="opacity:0.7">本地服务器</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box external">AI 模型<br><small>Claude / GPT / Gemini</small></div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>注意：</strong>Figma REST API 是只读的，无法直接重命名图层。导出 JSON 后可通过 Figma Plugin (用法 B) 粘贴并一键应用命名，或作为参考手动重命名。
+    </div>
+  </div>
+
+  <!-- Usage B: Figma Plugin -->
+  <div class="section">
+    <div class="section-title">
+      <span class="section-tag green">用法 B</span>
+      Figma Plugin (编辑器内)
+    </div>
+
+    <div class="card">
+      <h3>安装插件</h3>
+      <div class="code">
+        <span class="cmd">npm run build:plugin</span> <span class="comment"># 构建插件到 dist/</span>
+      </div>
+      <div class="steps" style="margin-top:12px;">
+        <div class="step">
+          <div class="step-content">
+            <strong>打开 Figma Desktop</strong>
+            <div class="hint">Plugins → Development → Import plugin from manifest</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong>选择项目根目录的 manifest.json</strong>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-content">
+            <strong>在画布上选中 Frame → 打开插件 → Start Naming</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>自建后端 (可选)</h3>
+      <div class="code">
+        <span class="cmd">cd</span> backend<br>
+        <span class="cmd">npm install</span><br>
+        <span class="comment"># 设置环境变量: ANTHROPIC_API_KEY 和/或 OPENAI_API_KEY</span><br>
+        <span class="cmd">vercel dev</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts reference -->
+  <div class="section">
+    <div class="section-title">
+      <span class="section-tag purple">参考</span>
+      命令速查
+    </div>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>命令</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>npm start</code></td><td>启动 Web Dashboard (服务器 + 前端)</td></tr>
+            <tr><td><code>npm run start:server</code></td><td>仅启动 Express 服务器</td></tr>
+            <tr><td><code>npm run start:web</code></td><td>仅启动 Vite 前端</td></tr>
+            <tr><td><code>npm run build:plugin</code></td><td>构建 Figma 插件</td></tr>
+            <tr><td><code>npm run dev:plugin</code></td><td>开发模式构建插件 (watch)</td></tr>
+            <tr><td><code>npm test</code></td><td>运行测试</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Models -->
+  <div class="section">
+    <div class="section-title">
+      <span class="section-tag orange">AI</span>
+      支持的模型
+    </div>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>提供商</th><th>模型</th><th>特点</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Anthropic</strong></td><td>claude-sonnet-4-6</td><td>最精准，命名质量最高</td></tr>
+            <tr><td><strong>OpenAI</strong></td><td>gpt-4o</td><td>综合能力强</td></tr>
+            <tr><td><strong>Google</strong></td><td>gemini-2.5-flash</td><td>速度快，成本低</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <p>Figma Namer — MIT License</p>
+  <p style="margin-top:4px;"><a href="https://github.com/groupultra/figma-namer">GitHub</a></p>
+</div>
+
+</body>
+</html>
