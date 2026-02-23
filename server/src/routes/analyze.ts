@@ -58,12 +58,16 @@ router.post('/', async (req, res) => {
 
     const estimatedBatches = Math.ceil(nodes.length / config.batchSize);
 
+    // Determine root node ID for frame context exports
+    const rootNodeId = nodeId || (rootNodes.length === 1 ? rootNodes[0].id : null);
+
     const result: AnalyzeResult = {
       totalNodes: nodes.length,
       nodesByType,
       nodes,
       estimatedBatches,
       rootName: fileData.name || 'Untitled',
+      rootNodeId,
     };
 
     res.json(result);

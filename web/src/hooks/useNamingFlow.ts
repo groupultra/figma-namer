@@ -30,6 +30,8 @@ export interface UseNamingFlowReturn {
   totalNodes: number;
   progressMessage: string;
   somPreviewImage: string | null;
+  cleanPreviewImage: string | null;
+  framePreviewImage: string | null;
   // Actions
   analyze: (figmaUrl: string, figmaToken: string, config?: Partial<NamerConfig>) => Promise<void>;
   startNaming: (params: {
@@ -50,6 +52,7 @@ export function useNamingFlow(): UseNamingFlowReturn {
   const [analyzeResult, setAnalyzeResult] = useState<AnalyzeResult | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [fileKey, setFileKey] = useState<string | null>(null);
+  const [rootNodeId, setRootNodeId] = useState<string | null>(null);
   const [results, setResults] = useState<NamingResult[]>([]);
   const nodesRef = useRef<NodeMetadata[]>([]);
 
@@ -95,6 +98,7 @@ export function useNamingFlow(): UseNamingFlowReturn {
       const data: AnalyzeResult = await res.json();
       setAnalyzeResult(data);
       nodesRef.current = data.nodes;
+      setRootNodeId(data.rootNodeId ?? null);
 
       // Extract fileKey from URL for later use
       const keyMatch = figmaUrl.match(/figma\.com\/(?:file|design)\/([a-zA-Z0-9]+)/);
@@ -127,6 +131,7 @@ export function useNamingFlow(): UseNamingFlowReturn {
           nodes: nodesRef.current,
           figmaToken: params.figmaToken,
           fileKey,
+          rootNodeId,
           vlmProvider: params.vlmProvider,
           vlmApiKey: params.vlmApiKey,
           globalContext: params.globalContext,
@@ -149,7 +154,7 @@ export function useNamingFlow(): UseNamingFlowReturn {
       setError(err.message);
       setStatus('counted');
     }
-  }, [fileKey]);
+  }, [fileKey, rootNodeId]);
 
   const reset = useCallback(() => {
     sse.disconnect();
@@ -158,6 +163,7 @@ export function useNamingFlow(): UseNamingFlowReturn {
     setAnalyzeResult(null);
     setSessionId(null);
     setFileKey(null);
+    setRootNodeId(null);
     setResults([]);
     nodesRef.current = [];
   }, [sse]);
@@ -191,6 +197,8 @@ export function useNamingFlow(): UseNamingFlowReturn {
     totalNodes: sse.totalNodes,
     progressMessage: sse.latestMessage,
     somPreviewImage: sse.latestSomImage,
+    cleanPreviewImage: sse.latestCleanImage,
+    framePreviewImage: sse.frameImage,
     analyze,
     startNaming,
     reset,

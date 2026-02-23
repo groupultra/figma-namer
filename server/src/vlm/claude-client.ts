@@ -1,9 +1,11 @@
 // ============================================================
-// Figma Namer - Claude Client (Web Dashboard version)
-// Supports both claude-opus-4-6 and claude-sonnet-4-6
+// Figma Namer - Anthropic Claude Client
+// Supports Claude Opus 4.6 and Claude Sonnet 4.6
 // ============================================================
 
 import Anthropic from '@anthropic-ai/sdk';
+
+export type ClaudeModel = 'claude-opus-4-6' | 'claude-sonnet-4-6';
 
 export interface VLMResult {
   content: string;
@@ -15,59 +17,43 @@ export interface VLMResult {
   };
 }
 
-export type ClaudeModel = 'claude-opus-4-6' | 'claude-sonnet-4-6';
-
+/**
+ * Call Claude with one or more images.
+ * Images are raw base64 PNG strings (no data: prefix).
+ */
 export async function callClaude(
   apiKey: string,
-  imageBase64: string,
+  images: string[],
   systemPrompt: string,
   userPrompt: string,
   model: ClaudeModel = 'claude-sonnet-4-6',
 ): Promise<VLMResult> {
   const client = new Anthropic({ apiKey });
 
-  // Strip data URI prefix if present
-  const cleanBase64 = imageBase64.replace(
-    /^data:image\/(png|jpeg|webp|gif);base64,/,
-    '',
-  );
-
-  let mediaType: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif' = 'image/png';
-  if (imageBase64.startsWith('data:image/jpeg')) mediaType = 'image/jpeg';
-  else if (imageBase64.startsWith('data:image/webp')) mediaType = 'image/webp';
-  else if (imageBase64.startsWith('data:image/gif')) mediaType = 'image/gif';
+  // Build content blocks: images first, then text prompt
+  const content: Anthropic.Messages.ContentBlockParam[] = images.map((img) => ({
+    type: 'image' as const,
+    source: {
+      type: 'base64' as const,
+      media_type: 'image/png' as const,
+      data: img.replace(/^data:image\/(png|jpeg|webp|gif);base64,/, ''),
+    },
+  }));
+  content.push({ type: 'text' as const, text: userPrompt });
 
   const response = await client.messages.create({
     model,
     max_tokens: 4096,
-    temperature: 0.1,
     system: systemPrompt,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: mediaType,
-              data: cleanBase64,
-            },
-          },
-          {
-            type: 'text',
-            text: userPrompt,
-          },
-        ],
-      },
-    ],
+    messages: [{ role: 'user', content }],
   });
 
-  const textBlock = response.content.find((block) => block.type === 'text');
-  const content = textBlock && textBlock.type === 'text' ? textBlock.text : '';
+  const textBlock = response.content.find(
+    (block): block is Anthropic.Messages.TextBlock => block.type === 'text',
+  );
 
   return {
-    content,
+    content: textBlock?.text ?? '',
     model: response.model,
     usage: {
       promptTokens: response.usage.input_tokens,

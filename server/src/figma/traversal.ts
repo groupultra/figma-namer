@@ -5,10 +5,10 @@
 // ============================================================
 
 import type { NamerConfig, NodeMetadata, BoundingBox, FigmaNode } from '@shared/types';
-import { SKIP_NODE_TYPES, NAMEABLE_NODE_TYPES, DEFAULT_NAME_PATTERNS } from '@shared/constants';
+import { SKIP_NODE_TYPES, DEFAULT_NAME_PATTERNS } from '@shared/constants';
 
-const MAX_TRAVERSAL_DEPTH = 100;
-const MAX_NODE_COUNT = 5000;
+const MAX_TRAVERSAL_DEPTH = 40;
+const MAX_NODE_COUNT = 500;
 
 /**
  * Traverse a Figma REST API JSON node tree using DFS.
@@ -27,6 +27,9 @@ export function traverseFileTree(
   return results;
 }
 
+/** Node types that represent complete UI components — include them but skip their subtree */
+const COMPONENT_BOUNDARY_TYPES = new Set(['INSTANCE', 'COMPONENT', 'COMPONENT_SET']);
+
 function walkDFS(
   node: FigmaNode,
   depth: number,
@@ -37,8 +40,16 @@ function walkDFS(
   if (depth > MAX_TRAVERSAL_DEPTH) return;
   if (results.length >= MAX_NODE_COUNT) return;
 
-  if (shouldIncludeNode(node, config)) {
+  const included = shouldIncludeNode(node, config);
+  if (included) {
     results.push(extractMetadata(node, depth, parentId));
+  }
+
+  // INSTANCE / COMPONENT / COMPONENT_SET are complete UI building blocks.
+  // If we included one, skip its entire subtree — the internal structure
+  // is an implementation detail and labelling it just creates noise.
+  if (included && COMPONENT_BOUNDARY_TYPES.has(node.type)) {
+    return; // don't recurse into children
   }
 
   if (node.children) {
@@ -50,6 +61,7 @@ function walkDFS(
 
 /**
  * Filter logic adapted from src/plugin/traversal/filter.ts
+ * Tuned for Web Dashboard: more selective to avoid labelling noise.
  */
 export function shouldIncludeNode(
   node: FigmaNode,
@@ -66,12 +78,32 @@ export function shouldIncludeNode(
     if (area < config.minNodeArea) return false;
   }
 
-  if (NAMEABLE_NODE_TYPES.has(node.type)) return true;
-
-  if ((node.type === 'FRAME' || node.type === 'GROUP') && hasTextDescendant(node)) {
+  // --- Component-level nodes: always include ---
+  if (node.type === 'INSTANCE' || node.type === 'COMPONENT' || node.type === 'COMPONENT_SET') {
     return true;
   }
 
+  // --- SECTION: always include (top-level organiser) ---
+  if (node.type === 'SECTION') return true;
+
+  // --- TEXT: include only if it's a standalone text layer (not deeply nested) ---
+  //     Text inside INSTANCE/COMPONENT is already skipped because we don't
+  //     recurse into component subtrees.
+  if (node.type === 'TEXT') return true;
+
+  // --- FRAME / GROUP: be selective ---
+  if (node.type === 'FRAME' || node.type === 'GROUP') {
+    // Auto-layout wrapper frames with only one child are just structural — skip
+    if (node.layoutMode && node.layoutMode !== 'NONE' && node.children?.length === 1) {
+      return false;
+    }
+    // Frames that don't have a user-meaningful name (default "Frame 123") — include
+    if (isDefaultName(node.name)) return true;
+    // Named frames — the user already named them, skip (they don't need AI naming)
+    return false;
+  }
+
+  // Custom includeNodeTypes from config
   if (config.includeNodeTypes?.length > 0 && config.includeNodeTypes.includes(node.type)) {
     return true;
   }

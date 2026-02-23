@@ -104,6 +104,8 @@ export const App: React.FC = () => {
         totalNodes={flow.totalNodes}
         message={flow.progressMessage}
         somPreviewImage={flow.somPreviewImage}
+        cleanPreviewImage={flow.cleanPreviewImage}
+        framePreviewImage={flow.framePreviewImage}
         error={flow.error}
         onCancel={flow.reset}
       />

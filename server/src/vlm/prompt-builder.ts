@@ -122,23 +122,29 @@ export function buildSystemPrompt(
   const platformSection =
     PLATFORM_GUIDELINES[platform] || PLATFORM_GUIDELINES['Auto'] || '';
 
-  return `You are an expert Figma layer naming assistant. Your task is to analyze a UI screenshot with numbered SoM (Set-of-Mark) labels and generate semantic layer names following the CESPC naming framework.
+  return `You are an expert Figma layer naming assistant. Your task is to analyze UI screenshots and generate semantic layer names following the CESPC naming framework.
+
+You will receive TWO images:
+  Image 1: The full frame / screen — use this to understand the overall UI context.
+  Image 2: A close-up with numbered SoM (Set-of-Mark) labels highlighting the specific elements to name.
 
 ${CESPC_FRAMEWORK}
 
 ${platformSection}
 
 <rules>
-  <rule id="1">Analyze the VISUAL content of the marked region in the image to understand what the UI element IS.</rule>
-  <rule id="2">Use the supplementary text/variable data to enrich your understanding, but rely primarily on the visual.</rule>
-  <rule id="3">Generate names using the CESPC framework. Only include segments that add meaningful information.</rule>
-  <rule id="4">Use lowercase with hyphens within segments, and "/" to separate segments.</rule>
-  <rule id="5">Keep names concise: aim for 2-4 segments maximum.</rule>
-  <rule id="6">If a node contains text, consider whether the text reveals the element's purpose (e.g., "Submit" -> button, "Username" -> input-label).</rule>
-  <rule id="7">Use boundVariables to infer semantic meaning (e.g., "Surface/Danger" -> error state, "Color/Primary" -> primary variant).</rule>
-  <rule id="8">Use componentProperties to detect variants and states (e.g., "State=Disabled" -> disabled).</rule>
-  <rule id="9">Assign a confidence score (0.0-1.0) for each naming: 1.0 = visually obvious, 0.5 = educated guess, below 0.3 = uncertain.</rule>
-  <rule id="10">If global context is provided, use it to inform the Context segment of names.</rule>
+  <rule id="1">Use Image 1 (full frame) to understand the screen context and purpose.</rule>
+  <rule id="2">Use Image 2 (annotated close-up) to identify which elements need naming — each is marked with a numbered label.</rule>
+  <rule id="3">Analyze the VISUAL content of each marked region to understand what the UI element IS.</rule>
+  <rule id="4">Use the supplementary text/variable data to enrich your understanding, but rely primarily on the visual.</rule>
+  <rule id="5">Generate names using the CESPC framework. Only include segments that add meaningful information.</rule>
+  <rule id="6">Use lowercase with hyphens within segments, and "/" to separate segments.</rule>
+  <rule id="7">Keep names concise: aim for 2-4 segments maximum.</rule>
+  <rule id="8">If a node contains text, consider whether the text reveals the element's purpose (e.g., "Submit" -> button, "Username" -> input-label).</rule>
+  <rule id="9">Use boundVariables to infer semantic meaning (e.g., "Surface/Danger" -> error state, "Color/Primary" -> primary variant).</rule>
+  <rule id="10">Use componentProperties to detect variants and states (e.g., "State=Disabled" -> disabled).</rule>
+  <rule id="11">Assign a confidence score (0.0-1.0) for each naming: 1.0 = visually obvious, 0.5 = educated guess, below 0.3 = uncertain.</rule>
+  <rule id="12">If global context is provided, use it to inform the Context segment of names.</rule>
 </rules>
 
 <global-context>${globalContext || 'No specific context provided.'}</global-context>
@@ -161,7 +167,8 @@ ${platformSection}
 export function buildUserPrompt(supplements: NodeSupplement[]): string {
   if (supplements.length === 0) {
     return `<task>
-Analyze the attached image with SoM (Set-of-Mark) labels and generate semantic names for each marked element.
+Image 1 is the full screen context. Image 2 has numbered SoM labels on the elements to name.
+Analyze each marked element and generate semantic names.
 No supplementary metadata is available for this batch.
 Return a JSON object with the "namings" array.
 </task>`;
@@ -197,14 +204,15 @@ Return a JSON object with the "namings" array.
     .join('\n');
 
   return `<task>
-Analyze the attached image with SoM (Set-of-Mark) labels and generate semantic names for each marked element.
+Image 1 is the full screen context. Image 2 has numbered SoM labels on the elements to name.
+Analyze each marked element and generate semantic names.
 
 <node-supplements>
 ${supplementXml}
 </node-supplements>
 
-For each mark ID visible in the image, provide a semantic name following the CESPC framework.
-Return a JSON object with the "namings" array. Include ALL mark IDs shown in the image.
+For each mark ID visible in Image 2, provide a semantic name following the CESPC framework.
+Return a JSON object with the "namings" array. Include ALL mark IDs shown.
 </task>`;
 }
 

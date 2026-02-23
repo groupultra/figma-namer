@@ -64,7 +64,8 @@ router.post('/', async (req, res) => {
       nodes,
       figmaToken,
       fileKey,
-      vlmProvider = 'claude',
+      rootNodeId,
+      vlmProvider = 'gemini-flash',
       vlmApiKey,
       globalContext = '',
       platform = 'Auto',
@@ -99,6 +100,7 @@ router.post('/', async (req, res) => {
       nodes as NodeMetadata[],
       figmaToken,
       fileKey,
+      rootNodeId || null,
       vlmProvider,
       vlmApiKey,
       globalContext,
@@ -125,6 +127,7 @@ async function processBatches(
   nodes: NodeMetadata[],
   figmaToken: string,
   fileKey: string,
+  rootNodeId: string | null,
   vlmProvider: string,
   vlmApiKey: string,
   globalContext: string,
@@ -141,6 +144,20 @@ async function processBatches(
     batches.push(nodes.slice(i, i + batchSize));
   }
 
+  // ------------------------------------------------------------------
+  // 1. Export the full frame / root context image (once, for all batches)
+  // ------------------------------------------------------------------
+  let frameBase64: string = '';
+  const frameNodeId = rootNodeId || findTopLevelParent(nodes);
+  if (frameNodeId) {
+    try {
+      const frameBuf = await exportNodeImage(fileKey, figmaToken, frameNodeId, 1); // 1x for context
+      frameBase64 = frameBuf.toString('base64');
+    } catch (err: any) {
+      console.warn('[name] Frame context image export failed:', err.message);
+    }
+  }
+
   const allResults: NamingResult[] = [];
 
   for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
@@ -154,30 +171,36 @@ async function processBatches(
       message: `Processing batch ${batchIdx + 1} of ${batches.length}`,
     });
 
-    // Find a common parent node to export as image
-    // Use the first node's parent or the node itself for image export
+    // ---------------------------------------------------------------
+    // 2. Export the batch area (clean, no SoM)
+    // ---------------------------------------------------------------
     const parentNodeId = findCommonAncestor(batch);
 
-    // Export the parent frame image
     let imageBuffer: Buffer;
     try {
       imageBuffer = await exportNodeImage(fileKey, figmaToken, parentNodeId, config.exportScale);
     } catch (err: any) {
       console.warn(`[name] Image export failed for batch ${batchIdx}, trying individual nodes:`, err.message);
-      // Fallback: try exporting the first node
       imageBuffer = await exportNodeImage(fileKey, figmaToken, batch[0].id, config.exportScale);
     }
+
+    const cleanBase64 = imageBuffer.toString('base64');
 
     emitProgress(sessionId, {
       type: 'image_exported',
       sessionId,
       batchIndex: batchIdx,
       totalBatches: batches.length,
+      cleanImageBase64: cleanBase64,
+      ...(batchIdx === 0 && frameBase64 ? { frameImageBase64: frameBase64 } : {}),
     });
 
-    const imageBase64 = imageBuffer.toString('base64');
+    // ---------------------------------------------------------------
+    // 3. Render SoM overlay (only current batch's nodes)
+    // ---------------------------------------------------------------
+    const imgWidth = imageBuffer.readUInt32BE(16);
+    const imgHeight = imageBuffer.readUInt32BE(20);
 
-    // Build SoM labels using bounding boxes relative to parent
     const labels: SoMLabel[] = batch.map((node, i) => {
       const markId = batchIdx * batchSize + i + 1;
       return {
@@ -189,13 +212,7 @@ async function processBatches(
       };
     });
 
-    // Get image dimensions from buffer (PNG header)
-    const imgWidth = imageBuffer.readUInt32BE(16);
-    const imgHeight = imageBuffer.readUInt32BE(20);
-
-    // Compute relative bounding boxes for SoM overlay
-    // The exported image covers the parent node's bounding box
-    const parentBox = batch[0].boundingBox; // Approximation
+    const parentBox = batch[0].boundingBox;
     const relativeLabels = labels.map((label) => ({
       ...label,
       highlightBox: {
@@ -206,11 +223,10 @@ async function processBatches(
       },
     }));
 
-    // Render SoM overlay
     let somBase64: string;
     try {
       somBase64 = await renderSoMImage({
-        baseImageBase64: imageBase64,
+        baseImageBase64: cleanBase64,
         baseImageWidth: imgWidth,
         baseImageHeight: imgHeight,
         labels: relativeLabels,
@@ -219,7 +235,7 @@ async function processBatches(
       });
     } catch (err: any) {
       console.warn(`[name] SoM render failed for batch ${batchIdx}, using raw image:`, err.message);
-      somBase64 = imageBase64;
+      somBase64 = cleanBase64;
     }
 
     emitProgress(sessionId, {
@@ -228,9 +244,12 @@ async function processBatches(
       batchIndex: batchIdx,
       totalBatches: batches.length,
       somImageBase64: somBase64,
+      cleanImageBase64: cleanBase64,
     });
 
-    // Build prompts
+    // ---------------------------------------------------------------
+    // 4. Call VLM with TWO images: [frame context, SoM annotated]
+    // ---------------------------------------------------------------
     const systemPrompt = buildSystemPrompt(globalContext, platform);
     const supplements: NodeSupplement[] = batch.map((node, i) => ({
       markId: batchIdx * batchSize + i + 1,
@@ -240,26 +259,28 @@ async function processBatches(
     }));
     const userPrompt = buildUserPrompt(supplements);
 
-    // Call VLM
+    // Image list: frame context first, then annotated detail
+    const vlmImages = frameBase64 ? [frameBase64, somBase64] : [somBase64];
+
     let vlmContent: string;
     try {
       let result;
       switch (vlmProvider) {
         case 'claude-opus':
-          result = await callClaude(vlmApiKey, somBase64, systemPrompt, userPrompt, 'claude-opus-4-6');
+          result = await callClaude(vlmApiKey, vlmImages, systemPrompt, userPrompt, 'claude-opus-4-6');
           break;
         case 'claude-sonnet':
-          result = await callClaude(vlmApiKey, somBase64, systemPrompt, userPrompt, 'claude-sonnet-4-6');
+          result = await callClaude(vlmApiKey, vlmImages, systemPrompt, userPrompt, 'claude-sonnet-4-6');
           break;
         case 'gpt-5':
-          result = await callOpenAI(vlmApiKey, somBase64, systemPrompt, userPrompt);
+          result = await callOpenAI(vlmApiKey, vlmImages, systemPrompt, userPrompt);
           break;
         case 'gemini-pro':
-          result = await callGemini(vlmApiKey, somBase64, systemPrompt, userPrompt, 'gemini-3-pro-preview');
+          result = await callGemini(vlmApiKey, vlmImages, systemPrompt, userPrompt, 'gemini-3-pro-preview');
           break;
         case 'gemini-flash':
         default:
-          result = await callGemini(vlmApiKey, somBase64, systemPrompt, userPrompt, 'gemini-3-flash-preview');
+          result = await callGemini(vlmApiKey, vlmImages, systemPrompt, userPrompt, 'gemini-3-flash-preview');
       }
       vlmContent = result.content;
     } catch (err: any) {
@@ -279,11 +300,12 @@ async function processBatches(
       totalBatches: batches.length,
     });
 
-    // Parse response
+    // ---------------------------------------------------------------
+    // 5. Parse response → results
+    // ---------------------------------------------------------------
     const expectedMarkIds = batch.map((_, i) => batchIdx * batchSize + i + 1);
     const parsedNamings = parseNamingResponse(vlmContent, expectedMarkIds);
 
-    // Map back to NamingResult
     const batchResults: NamingResult[] = parsedNamings.map((naming, i) => ({
       markId: naming.markId,
       nodeId: batch[i].id,
@@ -316,6 +338,17 @@ async function processBatches(
     totalNodes: session.totalNodes,
     results: allResults,
   });
+}
+
+/**
+ * Find the top-level parent of all nodes (for frame context image).
+ * Walk up the parentId chain to find the shallowest common ancestor.
+ */
+function findTopLevelParent(nodes: NodeMetadata[]): string | null {
+  if (nodes.length === 0) return null;
+  // Pick the node with the smallest depth — its parent is the best frame context
+  const shallowest = nodes.reduce((a, b) => (a.depth < b.depth ? a : b));
+  return shallowest.parentId || shallowest.id;
 }
 
 /**

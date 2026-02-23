@@ -13,7 +13,12 @@ export interface UseSSEProgressReturn {
   completedNodes: number;
   totalNodes: number;
   latestMessage: string;
+  /** SoM annotated image (numbered labels) */
   latestSomImage: string | null;
+  /** Clean base image (no markup) */
+  latestCleanImage: string | null;
+  /** Full frame context image */
+  frameImage: string | null;
   batchResults: NamingResult[];
   allComplete: boolean;
   error: string | null;
@@ -29,6 +34,8 @@ export function useSSEProgress(): UseSSEProgressReturn {
   const [totalNodes, setTotalNodes] = useState(0);
   const [latestMessage, setLatestMessage] = useState('');
   const [latestSomImage, setLatestSomImage] = useState<string | null>(null);
+  const [latestCleanImage, setLatestCleanImage] = useState<string | null>(null);
+  const [frameImage, setFrameImage] = useState<string | null>(null);
   const [batchResults, setBatchResults] = useState<NamingResult[]>([]);
   const [allComplete, setAllComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +58,8 @@ export function useSSEProgress(): UseSSEProgressReturn {
     setTotalNodes(0);
     setLatestMessage('Connecting...');
     setLatestSomImage(null);
+    setLatestCleanImage(null);
+    setFrameImage(null);
     setBatchResults([]);
     setAllComplete(false);
     setError(null);
@@ -78,13 +87,14 @@ export function useSSEProgress(): UseSSEProgressReturn {
             break;
 
           case 'image_exported':
+            if (data.cleanImageBase64) setLatestCleanImage(data.cleanImageBase64);
+            if (data.frameImageBase64) setFrameImage(data.frameImageBase64);
             setLatestMessage('Image exported, rendering SoM marks...');
             break;
 
           case 'som_rendered':
-            if (data.somImageBase64) {
-              setLatestSomImage(data.somImageBase64);
-            }
+            if (data.somImageBase64) setLatestSomImage(data.somImageBase64);
+            if (data.cleanImageBase64) setLatestCleanImage(data.cleanImageBase64);
             setLatestMessage('SoM overlay rendered, calling AI model...');
             break;
 
@@ -146,6 +156,8 @@ export function useSSEProgress(): UseSSEProgressReturn {
     totalNodes,
     latestMessage,
     latestSomImage,
+    latestCleanImage,
+    frameImage,
     batchResults,
     allComplete,
     error,

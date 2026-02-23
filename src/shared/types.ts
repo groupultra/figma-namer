@@ -201,6 +201,8 @@ export interface AnalyzeResult {
   nodes: NodeMetadata[];
   estimatedBatches: number;
   rootName: string;
+  /** The root node ID (for frame context export) */
+  rootNodeId: string | null;
 }
 
 /** SSE progress event types */
@@ -223,20 +225,25 @@ export interface ProgressEvent {
   totalNodes?: number;
   message?: string;
   results?: NamingResult[];
+  /** SoM annotated image (numbered labels) */
   somImageBase64?: string;
+  /** Clean base image (no SoM overlay) for comparison */
+  cleanImageBase64?: string;
+  /** Full frame context image (exported once) */
+  frameImageBase64?: string;
 }
 
 /** Default configuration */
 export const DEFAULT_CONFIG: NamerConfig = {
   vlmProvider: 'gemini-flash',
   apiEndpoint: 'https://figma-namer-api.vercel.app/api/naming',
-  batchSize: 15,
+  batchSize: 8,
   exportScale: 2,
   highlightColor: '#FF0040',
   labelFontSize: 14,
   includeLocked: false,
   includeInvisible: false,
-  minNodeArea: 100,
+  minNodeArea: 400,
   includeNodeTypes: [
     'FRAME',
     'GROUP',

@@ -1,9 +1,12 @@
 // ============================================================
 // Figma Namer - BatchProgress Component (Web Dashboard)
-// Real-time progress display driven by SSE events
+// Real-time progress with 3-view image comparison:
+//   Annotated (SoM) | Original (clean) | Full Frame (context)
 // ============================================================
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+
+type PreviewTab = 'annotated' | 'original' | 'frame';
 
 interface BatchProgressProps {
   currentBatch: number;
@@ -12,6 +15,8 @@ interface BatchProgressProps {
   totalNodes: number;
   message: string;
   somPreviewImage: string | null;
+  cleanPreviewImage: string | null;
+  framePreviewImage: string | null;
   error: string | null;
   onCancel: () => void;
 }
@@ -23,13 +28,31 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({
   totalNodes,
   message,
   somPreviewImage,
+  cleanPreviewImage,
+  framePreviewImage,
   error,
   onCancel,
 }) => {
+  const [activeTab, setActiveTab] = useState<PreviewTab>('annotated');
+
   const progressPercent = useMemo(() => {
     if (totalBatches === 0) return 5;
     return Math.round(((currentBatch + 1) / totalBatches) * 100);
   }, [currentBatch, totalBatches]);
+
+  const hasAnyPreview = somPreviewImage || cleanPreviewImage || framePreviewImage;
+
+  const activeImage = activeTab === 'annotated'
+    ? somPreviewImage
+    : activeTab === 'original'
+      ? cleanPreviewImage
+      : framePreviewImage;
+
+  const tabs: Array<{ key: PreviewTab; label: string; available: boolean }> = [
+    { key: 'annotated', label: 'Annotated', available: !!somPreviewImage },
+    { key: 'original', label: 'Original', available: !!cleanPreviewImage },
+    { key: 'frame', label: 'Full Frame', available: !!framePreviewImage },
+  ];
 
   return (
     <div style={styles.container}>
@@ -74,32 +97,50 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({
           </div>
         </div>
 
-        {/* Batch dots */}
-        {totalBatches > 1 && totalBatches <= 20 && (
-          <div style={styles.batchDots}>
-            {Array.from({ length: totalBatches }).map((_, i) => (
-              <div
-                key={i}
-                style={{
-                  ...styles.dot,
-                  ...(i <= currentBatch ? styles.dotDone : {}),
-                  ...(i === currentBatch ? styles.dotActive : {}),
-                }}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* SoM preview */}
-        {somPreviewImage && (
+        {/* Image preview with tabs */}
+        {hasAnyPreview && (
           <div style={styles.previewSection}>
-            <span style={styles.previewLabel}>Current Batch Preview</span>
+            {/* Tab bar */}
+            <div style={styles.tabBar}>
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  style={{
+                    ...styles.tab,
+                    ...(activeTab === tab.key ? styles.tabActive : {}),
+                    ...(!tab.available ? styles.tabDisabled : {}),
+                  }}
+                  onClick={() => tab.available && setActiveTab(tab.key)}
+                  disabled={!tab.available}
+                >
+                  {tab.key === 'annotated' && (
+                    <span style={styles.tabDot} />
+                  )}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Image */}
             <div style={styles.previewContainer}>
-              <img
-                src={`data:image/png;base64,${somPreviewImage}`}
-                alt="SoM marked screenshot"
-                style={styles.previewImage}
-              />
+              {activeImage ? (
+                <img
+                  src={`data:image/png;base64,${activeImage}`}
+                  alt={`${activeTab} preview`}
+                  style={styles.previewImage}
+                />
+              ) : (
+                <div style={styles.previewPlaceholder}>
+                  {activeTab === 'frame' ? 'Frame image loading...' : 'Waiting for image...'}
+                </div>
+              )}
+            </div>
+
+            {/* Caption */}
+            <div style={styles.caption}>
+              {activeTab === 'annotated' && 'Numbered labels mark elements being named in this batch'}
+              {activeTab === 'original' && 'Original screenshot without markup — for comparison'}
+              {activeTab === 'frame' && 'Full frame context — the AI sees this alongside the annotations'}
             </div>
           </div>
         )}
@@ -129,7 +170,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   card: {
     width: '100%',
-    maxWidth: 560,
+    maxWidth: 620,
     background: 'var(--color-bg)',
     borderRadius: 'var(--radius-lg)',
     boxShadow: 'var(--shadow-md)',
@@ -185,7 +226,7 @@ const styles: Record<string, React.CSSProperties> = {
   statsRow: {
     display: 'flex',
     gap: 16,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   stat: {
     flex: 1,
@@ -207,41 +248,56 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--color-text-secondary)',
     marginTop: 2,
   },
-  batchDots: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: 6,
-    marginBottom: 16,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: '50%',
-    background: 'var(--color-border)',
-    transition: 'all 0.3s ease',
-  },
-  dotDone: {
-    background: 'var(--color-success)',
-  },
-  dotActive: {
-    background: 'var(--color-primary)',
-    boxShadow: '0 0 0 3px rgba(13,153,255,0.25)',
-  },
+  // --- Preview with tabs ---
   previewSection: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  previewLabel: {
-    display: 'block',
-    fontSize: 12,
-    color: 'var(--color-text-secondary)',
+  tabBar: {
+    display: 'flex',
+    gap: 4,
     marginBottom: 8,
+    background: 'var(--color-bg-secondary)',
+    borderRadius: 8,
+    padding: 3,
+  },
+  tab: {
+    flex: 1,
+    padding: '6px 0',
+    fontSize: 12,
     fontWeight: 500,
+    color: 'var(--color-text-secondary)',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  tabActive: {
+    background: 'var(--color-bg)',
+    color: 'var(--color-text)',
+    fontWeight: 600,
+    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+  },
+  tabDisabled: {
+    opacity: 0.4,
+    cursor: 'default',
+  },
+  tabDot: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: '#FF0040',
+    flexShrink: 0,
   },
   previewContainer: {
     border: '1px solid var(--color-border)',
     borderRadius: 'var(--radius)',
     overflow: 'hidden',
-    maxHeight: 240,
+    maxHeight: 320,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -251,13 +307,25 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
     height: 'auto',
     objectFit: 'contain' as const,
-    maxHeight: 240,
+    maxHeight: 320,
   },
+  previewPlaceholder: {
+    padding: '40px 20px',
+    fontSize: 13,
+    color: 'var(--color-text-secondary)',
+  },
+  caption: {
+    fontSize: 11,
+    color: 'var(--color-text-secondary)',
+    marginTop: 6,
+    textAlign: 'center' as const,
+  },
+  // --- Spinner ---
   spinnerSection: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    padding: '16px 0',
+    padding: '12px 0',
     gap: 10,
   },
   spinner: {

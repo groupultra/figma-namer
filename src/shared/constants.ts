@@ -11,8 +11,8 @@ export const SOM_OVERLAY_LAYER_NAME = '__FigmaNamer_SoM_Overlay__';
 
 /** SoM rendering defaults */
 export const SOM_DEFAULTS = {
-  HIGHLIGHT_STROKE_WIDTH: 2,
-  HIGHLIGHT_OPACITY: 0.3,
+  HIGHLIGHT_STROKE_WIDTH: 1.5,
+  HIGHLIGHT_OPACITY: 0.12,
   LABEL_BG_COLOR: '#FF0040',
   LABEL_TEXT_COLOR: '#FFFFFF',
   LABEL_PADDING: 4,
