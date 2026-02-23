@@ -116,6 +116,7 @@ export const App: React.FC = () => {
         currentPage={flow.currentPage}
         totalPages={flow.totalPages}
         currentPageName={flow.currentPageName}
+        partialResults={flow.partialResults}
       />
     );
   }

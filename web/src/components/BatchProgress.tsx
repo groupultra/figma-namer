@@ -6,6 +6,7 @@
 // ============================================================
 
 import React, { useMemo, useState } from 'react';
+import type { NamingResult } from '@shared/types';
 import { useI18n } from '../i18n';
 
 type PreviewTab = 'annotated' | 'original' | 'frame';
@@ -25,6 +26,8 @@ interface BatchProgressProps {
   currentPage?: number;
   totalPages?: number;
   currentPageName?: string;
+  /** Partial naming results accumulated so far */
+  partialResults?: NamingResult[];
 }
 
 export const BatchProgress: React.FC<BatchProgressProps> = ({
@@ -41,9 +44,11 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({
   currentPage = 0,
   totalPages = 0,
   currentPageName = '',
+  partialResults = [],
 }) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<PreviewTab>('annotated');
+  const [showResults, setShowResults] = useState(true);
 
   const progressPercent = useMemo(() => {
     if (totalBatches === 0) return 5;
@@ -176,6 +181,50 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({
               {activeTab === 'original' && t('progress.caption.original')}
               {activeTab === 'frame' && t('progress.caption.frame')}
             </div>
+          </div>
+        )}
+
+        {/* Partial results list */}
+        {partialResults.length > 0 && (
+          <div style={styles.resultsSection}>
+            <button
+              style={styles.resultsToggle}
+              onClick={() => setShowResults(!showResults)}
+            >
+              <span>{t('progress.results')} ({partialResults.length})</span>
+              <span style={styles.toggleArrow}>{showResults ? '\u25B2' : '\u25BC'}</span>
+            </button>
+            {showResults && (
+              <div style={styles.resultsList}>
+                {partialResults.slice(-50).reverse().map((r, i) => (
+                  <div
+                    key={`${r.nodeId}-${r.markId}`}
+                    style={{
+                      ...styles.resultRow,
+                      ...(i === 0 ? styles.resultRowNew : {}),
+                    }}
+                  >
+                    {r.imageBase64 && (
+                      <img
+                        src={`data:image/png;base64,${r.imageBase64}`}
+                        alt=""
+                        style={styles.resultThumb}
+                      />
+                    )}
+                    <span style={styles.resultMark}>#{r.markId}</span>
+                    <span style={styles.resultOriginal} title={r.originalName}>{r.originalName}</span>
+                    <span style={styles.resultArrow}>{'\u2192'}</span>
+                    <span style={styles.resultSuggested} title={r.suggestedName}>{r.suggestedName}</span>
+                    <span style={{
+                      ...styles.resultConfidence,
+                      color: r.confidence >= 0.8 ? 'var(--color-success)' : r.confidence >= 0.5 ? 'var(--color-warning)' : 'var(--color-danger)',
+                    }}>
+                      {Math.round(r.confidence * 100)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -394,6 +443,90 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--color-text-secondary)',
     marginTop: 6,
     textAlign: 'center' as const,
+  },
+  // --- Partial results ---
+  resultsSection: {
+    marginBottom: 16,
+    border: '1px solid var(--color-border)',
+    borderRadius: 'var(--radius)',
+    overflow: 'hidden',
+  },
+  resultsToggle: {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 14px',
+    background: 'var(--color-bg-secondary)',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--color-text)',
+  },
+  toggleArrow: {
+    fontSize: 10,
+    color: 'var(--color-text-secondary)',
+  },
+  resultsList: {
+    maxHeight: 240,
+    overflowY: 'auto' as const,
+  },
+  resultRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '6px 14px',
+    fontSize: 12,
+    borderTop: '1px solid #f0f0f0',
+    transition: 'background 0.3s ease',
+  },
+  resultRowNew: {
+    background: 'rgba(13,153,255,0.06)',
+  },
+  resultThumb: {
+    width: 28,
+    height: 28,
+    objectFit: 'contain' as const,
+    borderRadius: 3,
+    border: '1px solid #eee',
+    flexShrink: 0,
+  },
+  resultMark: {
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#fff',
+    background: '#FF0040',
+    borderRadius: 3,
+    padding: '1px 4px',
+    flexShrink: 0,
+  },
+  resultOriginal: {
+    color: 'var(--color-text-secondary)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap' as const,
+    maxWidth: 120,
+    flexShrink: 0,
+  },
+  resultArrow: {
+    color: 'var(--color-text-secondary)',
+    flexShrink: 0,
+  },
+  resultSuggested: {
+    fontWeight: 600,
+    color: 'var(--color-text)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap' as const,
+    flex: 1,
+    minWidth: 0,
+  },
+  resultConfidence: {
+    fontSize: 10,
+    fontWeight: 600,
+    fontVariantNumeric: 'tabular-nums',
+    flexShrink: 0,
   },
   // --- Spinner ---
   spinnerSection: {

@@ -217,16 +217,38 @@ export async function renderPageHighlights(params: {
     drawHighlightBox(ctx, label.highlightBox, highlightColor, SOM_DEFAULTS.HIGHLIGHT_OPACITY);
   }
 
-  // Draw numbered labels
+  // Compute label badge dimensions and apply anti-overlap optimization
+  const padding = SOM_DEFAULTS.LABEL_PADDING;
   const font = `bold ${labelFontSize}px ${SOM_DEFAULTS.LABEL_FONT_FAMILY}`;
   ctx.font = font;
 
-  for (const label of relativeLabels) {
+  const initialPlacements: LabelPlacement[] = relativeLabels.map((label) => {
+    const text = String(label.markId);
+    const textWidth = ctx.measureText(text).width;
+    const badgeWidth = textWidth + padding * 2;
+    const badgeHeight = labelFontSize + padding * 2;
+    const anchorX = label.highlightBox.x;
+    const anchorY = Math.max(0, label.highlightBox.y - badgeHeight);
+
+    return {
+      markId: label.markId,
+      x: anchorX,
+      y: anchorY,
+      width: badgeWidth,
+      height: badgeHeight,
+      anchorX,
+      anchorY,
+    };
+  });
+
+  const optimized = optimizeLabelPositions(initialPlacements, pageImageWidth, pageImageHeight);
+
+  for (const placement of optimized) {
     drawLabel(
       ctx,
-      label.markId,
-      label.highlightBox.x,
-      Math.max(0, label.highlightBox.y - labelFontSize - SOM_DEFAULTS.LABEL_PADDING * 2),
+      placement.markId,
+      placement.x,
+      placement.y,
       labelFontSize,
       highlightColor,
       SOM_DEFAULTS.LABEL_TEXT_COLOR,
@@ -311,6 +333,77 @@ export async function renderComponentGrid(
   }
 
   return canvasToBase64(canvas);
+}
+
+/**
+ * Detect whether label badges in a batch would overlap when drawn on a page image.
+ * Used to decide whether to split a batch into individual marks.
+ */
+export function detectLabelOverlap(
+  labels: SoMLabel[],
+  pageBBox: BoundingBox,
+  exportScale: number,
+  labelFontSize: number,
+): boolean {
+  if (labels.length <= 1) return false;
+
+  const padding = SOM_DEFAULTS.LABEL_PADDING;
+  // Approximate text width: each digit is ~0.6 * fontSize
+  const badgeRects = labels.map((label) => {
+    const text = String(label.markId);
+    const approxTextWidth = text.length * labelFontSize * 0.6;
+    const badgeWidth = approxTextWidth + padding * 2;
+    const badgeHeight = labelFontSize + padding * 2;
+
+    // Convert to page-relative pixel coordinates
+    const pixelX = (label.highlightBox.x - pageBBox.x) * exportScale;
+    const pixelY = (label.highlightBox.y - pageBBox.y) * exportScale;
+
+    // Badge sits above the highlight box
+    return {
+      x: pixelX,
+      y: Math.max(0, pixelY - badgeHeight),
+      width: badgeWidth,
+      height: badgeHeight,
+    };
+  });
+
+  // Also check highlight boxes themselves for overlap
+  const highlightRects = labels.map((label) => ({
+    x: (label.highlightBox.x - pageBBox.x) * exportScale,
+    y: (label.highlightBox.y - pageBBox.y) * exportScale,
+    width: label.highlightBox.width * exportScale,
+    height: label.highlightBox.height * exportScale,
+  }));
+
+  // Check pairwise overlap of badge rects (with a margin)
+  const margin = 4;
+  for (let i = 0; i < badgeRects.length; i++) {
+    for (let j = i + 1; j < badgeRects.length; j++) {
+      const a = badgeRects[i];
+      const b = badgeRects[j];
+      const xOverlap = Math.max(
+        0,
+        Math.min(a.x + a.width + margin, b.x + b.width + margin) - Math.max(a.x - margin, b.x - margin),
+      );
+      const yOverlap = Math.max(
+        0,
+        Math.min(a.y + a.height + margin, b.y + b.height + margin) - Math.max(a.y - margin, b.y - margin),
+      );
+      if (xOverlap > 0 && yOverlap > 0) return true;
+
+      // Also check if highlight boxes are heavily overlapping (>50% area of smaller)
+      const ha = highlightRects[i];
+      const hb = highlightRects[j];
+      const hxOverlap = Math.max(0, Math.min(ha.x + ha.width, hb.x + hb.width) - Math.max(ha.x, hb.x));
+      const hyOverlap = Math.max(0, Math.min(ha.y + ha.height, hb.y + hb.height) - Math.max(ha.y, hb.y));
+      const overlapArea = hxOverlap * hyOverlap;
+      const smallerArea = Math.min(ha.width * ha.height, hb.width * hb.height);
+      if (smallerArea > 0 && overlapArea / smallerArea > 0.5) return true;
+    }
+  }
+
+  return false;
 }
 
 function canvasToBase64(canvas: Canvas): string {

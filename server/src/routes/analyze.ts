@@ -66,8 +66,12 @@ router.post('/', async (req, res) => {
         // Extract nodes for each non-auxiliary page
         pages = [];
         for (const page of analysisResult.pages) {
+          // Look up the page Frame node to get its absoluteBoundingBox
+          const pageFrameNode = findPageNode(rootNodes, page.nodeId);
+          const pageBBox = pageFrameNode?.absoluteBoundingBox ?? undefined;
+
           if (page.isAuxiliary) {
-            pages.push(page); // Include but with empty nodes
+            pages.push({ ...page, boundingBox: pageBBox }); // Include but with empty nodes
             continue;
           }
 
@@ -75,19 +79,19 @@ router.post('/', async (req, res) => {
             // Extract specific nodes identified by AI
             const targetIds = new Set(page.nodeIdsToName);
             const pageNodes = extractNodesById(rootNodes, targetIds, config);
-            pages.push({ ...page, nodes: pageNodes });
+            pages.push({ ...page, nodes: pageNodes, boundingBox: pageBBox });
           } else {
             // Fallback: traverse the page subtree
-            const pageRoot = findPageNode(rootNodes, page.nodeId);
-            if (pageRoot) {
-              const pageNodes = traverseFileTree([pageRoot], config);
+            if (pageFrameNode) {
+              const pageNodes = traverseFileTree([pageFrameNode], config);
               pages.push({
                 ...page,
                 nodes: pageNodes,
                 nodeIdsToName: pageNodes.map(n => n.id),
+                boundingBox: pageBBox,
               });
             } else {
-              pages.push(page);
+              pages.push({ ...page, boundingBox: pageBBox });
             }
           }
         }

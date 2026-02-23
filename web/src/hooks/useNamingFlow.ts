@@ -24,6 +24,8 @@ export interface UseNamingFlowReturn {
   sessionId: string | null;
   fileKey: string | null;
   results: NamingResult[];
+  /** Partial results accumulated during naming (updated per batch) */
+  partialResults: NamingResult[];
   // SSE progress
   currentBatch: number;
   totalBatches: number;
@@ -194,6 +196,7 @@ export function useNamingFlow(): UseNamingFlowReturn {
     sessionId,
     fileKey,
     results,
+    partialResults: sse.batchResults,
     currentBatch: sse.currentBatch,
     totalBatches: sse.totalBatches,
     completedNodes: sse.completedNodes,

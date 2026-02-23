@@ -8,7 +8,7 @@ import type { NodeMetadata, NamingResult, SoMLabel, PageInfo } from '@shared/typ
 import { DEFAULT_CONFIG } from '@shared/types';
 import { createSession, emitProgress } from '../session/manager';
 import { exportNodeImage, exportMultipleNodeImages } from '../figma/image-export';
-import { renderSoMImage, renderPageHighlights, renderComponentGrid } from '../som/renderer';
+import { renderSoMImage, renderPageHighlights, renderComponentGrid, detectLabelOverlap } from '../som/renderer';
 import { buildSystemPrompt, buildUserPrompt, buildSystemPromptWithPageContext, type NodeSupplement } from '../vlm/prompt-builder';
 import { callClaude, type ClaudeModel } from '../vlm/claude-client';
 import { callOpenAI } from '../vlm/openai-client';
@@ -242,12 +242,138 @@ async function processPageBatches(
       });
 
       // -----------------------------------------------------------
+      // 2.5. Check for label/highlight overlap — split if needed
+      // -----------------------------------------------------------
+      const pageBBoxForOverlap = page.boundingBox || { x: 0, y: 0, width: pageImgWidth || 1, height: pageImgHeight || 1 };
+      const hasOverlap = batch.length > 1 && pageBase64 && pageImgWidth > 0 &&
+        detectLabelOverlap(labels, pageBBoxForOverlap, 1, config.labelFontSize);
+
+      if (hasOverlap) {
+        console.log(`[name] Overlap detected in page "${page.name}" batch ${localBatchIdx + 1}, processing nodes individually`);
+
+        // Export all node images at once (efficient single API call)
+        const nodeIds = batch.map(n => n.id);
+        let nodeImagesMap = new Map<string, Buffer>();
+        try {
+          nodeImagesMap = await exportMultipleNodeImages(fileKey, figmaToken, nodeIds, config.exportScale);
+        } catch (err: any) {
+          console.warn(`[name] Node image export failed:`, err.message);
+        }
+
+        const splitResults: NamingResult[] = [];
+
+        for (let nodeIdx = 0; nodeIdx < batch.length; nodeIdx++) {
+          const node = batch[nodeIdx];
+          const singleLabel = [labels[nodeIdx]];
+          const markId = labels[nodeIdx].markId;
+
+          // Node's individual image
+          let nodeImageBase64 = '';
+          const nodeBuf = nodeImagesMap.get(node.id);
+          if (nodeBuf) {
+            nodeImageBase64 = nodeBuf.toString('base64');
+          }
+
+          // Render single-node page highlight
+          let singleHighlightBase64 = '';
+          try {
+            singleHighlightBase64 = await renderPageHighlights({
+              pageImageBase64: pageBase64,
+              pageImageWidth: pageImgWidth,
+              pageImageHeight: pageImgHeight,
+              pageBBox: pageBBoxForOverlap,
+              labels: singleLabel,
+              highlightColor: config.highlightColor,
+              labelFontSize: config.labelFontSize,
+              exportScale: 1,
+            });
+          } catch (err: any) {
+            console.warn(`[name] Single highlight failed for mark ${markId}:`, err.message);
+          }
+
+          emitProgress(sessionId, {
+            type: 'som_rendered',
+            sessionId,
+            batchIndex: globalBatchIdx,
+            totalBatches: session.totalBatches,
+            somImageBase64: singleHighlightBase64 || nodeImageBase64,
+            cleanImageBase64: nodeImageBase64,
+          });
+
+          // Build VLM images: [page full, node crop, page + single highlight]
+          const vlmImages: string[] = [];
+          if (pageBase64) vlmImages.push(pageBase64);
+          if (nodeImageBase64) vlmImages.push(nodeImageBase64);
+          if (singleHighlightBase64) vlmImages.push(singleHighlightBase64);
+
+          // Call VLM for this single node
+          const systemPrompt = buildSystemPromptWithPageContext(globalContext, platform);
+          const supplements: NodeSupplement[] = [{
+            markId,
+            textContent: node.textContent,
+            boundVariables: node.boundVariables,
+            componentProperties: node.componentProperties,
+          }];
+          const userPrompt = buildUserPrompt(supplements);
+
+          try {
+            const result = await callVLM(vlmProvider, vlmApiKey, vlmImages, systemPrompt, userPrompt);
+            const parsedNamings = parseNamingResponse(result.content, [markId]);
+            const naming = parsedNamings[0];
+
+            splitResults.push({
+              markId: naming.markId,
+              nodeId: node.id,
+              originalName: node.originalName,
+              suggestedName: naming.name || node.originalName,
+              confidence: naming.confidence,
+              imageBase64: nodeImageBase64 || undefined,
+            });
+          } catch (err: any) {
+            console.error(`[name] VLM call failed for node ${node.id}:`, err.message);
+            splitResults.push({
+              markId,
+              nodeId: node.id,
+              originalName: node.originalName,
+              suggestedName: node.originalName,
+              confidence: 0,
+              imageBase64: nodeImageBase64 || undefined,
+            });
+          }
+        }
+
+        // Emit progress for the completed split batch
+        allResults.push(...splitResults);
+        session.completedBatches = globalBatchIdx + 1;
+        session.completedNodes += batch.length;
+        session.results = allResults;
+
+        emitProgress(sessionId, {
+          type: 'batch_complete',
+          sessionId,
+          batchIndex: globalBatchIdx,
+          totalBatches: session.totalBatches,
+          completedNodes: session.completedNodes,
+          totalNodes: session.totalNodes,
+          pageIndex: pageIdx,
+          totalPages: pages.length,
+          pageName: page.name,
+          results: splitResults,
+        });
+
+        globalBatchIdx++;
+        continue; // Skip normal batch processing
+      }
+
+      // -----------------------------------------------------------
       // 3. Export component images + render grid (Image 2)
       // -----------------------------------------------------------
+      let nodeImagesMap = new Map<string, Buffer>();
       let componentGridBase64 = '';
       try {
         const nodeIds = batch.map(n => n.id);
         const nodeImages = await exportMultipleNodeImages(fileKey, figmaToken, nodeIds, config.exportScale);
+        nodeImagesMap = nodeImages;
 
         const components: Array<{ markId: number; imageBuffer: Buffer }> = [];
         batch.forEach((node, i) => {
@@ -273,7 +399,25 @@ async function processPageBatches(
           const imgWidth = imageBuf.readUInt32BE(16);
           const imgHeight = imageBuf.readUInt32BE(20);
 
-          const parentBox = batch[0].boundingBox;
+          // Use page boundingBox if the parent is the page itself, otherwise
+          // look up the parent node's bbox from the page's node list or fall back
+          // to computing a bounding envelope from batch nodes.
+          let parentBox: { x: number; y: number };
+          if (parentNodeId === page.nodeId && page.boundingBox) {
+            parentBox = page.boundingBox;
+          } else {
+            // Find the parent node in the page's node list by parentId
+            const parentMeta = page.nodes.find(n => n.id === parentNodeId);
+            if (parentMeta) {
+              parentBox = parentMeta.boundingBox;
+            } else {
+              // Compute bounding envelope of all batch nodes as fallback
+              const allX = batch.map(n => n.boundingBox.x);
+              const allY = batch.map(n => n.boundingBox.y);
+              parentBox = { x: Math.min(...allX), y: Math.min(...allY) };
+            }
+          }
+
           const relativeLabels = labels.map((label) => ({
             ...label,
             highlightBox: {
@@ -312,23 +456,10 @@ async function processPageBatches(
       let pageHighlightBase64 = '';
       if (pageBase64 && pageImgWidth > 0) {
         try {
-          const pageBBox = { x: 0, y: 0, width: 0, height: 0 };
-          // Find page bbox from nodes
-          if (batch.length > 0 && batch[0].parentId) {
-            // Use the page's own bounding box inferred from first node
-            const firstNode = batch[0];
-            pageBBox.x = firstNode.boundingBox.x - 10;
-            pageBBox.y = firstNode.boundingBox.y - 10;
-          }
-          // Use page node's bounding coordinates — approximate from the page image
-          const pageNode = page.nodes[0];
-          if (pageNode) {
-            // All nodes share the page container, use min x/y across all nodes
-            const allX = page.nodes.map(n => n.boundingBox.x);
-            const allY = page.nodes.map(n => n.boundingBox.y);
-            pageBBox.x = Math.min(...allX);
-            pageBBox.y = Math.min(...allY);
-          }
+          // Use the page Frame's own absoluteBoundingBox for coordinate offset
+          // This is the correct origin: pixel (0,0) of the exported page image
+          // corresponds to page.boundingBox.x, page.boundingBox.y in canvas coords
+          const pageBBox = page.boundingBox || { x: 0, y: 0, width: pageImgWidth, height: pageImgHeight };
 
           pageHighlightBase64 = await renderPageHighlights({
             pageImageBase64: pageBase64,
@@ -409,13 +540,22 @@ async function processPageBatches(
       const expectedMarkIds = batch.map((_, i) => batchMarkStart + i);
       const parsedNamings = parseNamingResponse(vlmContent, expectedMarkIds);
 
-      const batchResults: NamingResult[] = parsedNamings.map((naming, i) => ({
-        markId: naming.markId,
-        nodeId: batch[i].id,
-        originalName: batch[i].originalName,
-        suggestedName: naming.name || batch[i].originalName,
-        confidence: naming.confidence,
-      }));
+      const batchResults: NamingResult[] = parsedNamings.map((naming, i) => {
+        // Get node thumbnail from the exported images
+        const nodeBuf = nodeImagesMap.get(batch[i].id);
+        let thumbBase64: string | undefined;
+        if (nodeBuf) {
+          thumbBase64 = nodeBuf.toString('base64');
+        }
+        return {
+          markId: naming.markId,
+          nodeId: batch[i].id,
+          originalName: batch[i].originalName,
+          suggestedName: naming.name || batch[i].originalName,
+          confidence: naming.confidence,
+          imageBase64: thumbBase64,
+        };
+      });
 
       allResults.push(...batchResults);
       session.completedBatches = globalBatchIdx + 1;
@@ -549,7 +689,18 @@ async function processLegacyBatches(
       };
     });
 
-    const parentBox = batch[0].boundingBox;
+    // Use the bounding envelope of all batch nodes to approximate the export origin.
+    // The exported parent image's pixel (0,0) corresponds to the parent node's
+    // absoluteBoundingBox origin. Since findCommonAncestor returns a parent ID
+    // and we don't have its bbox directly, approximate with the min x/y of
+    // all batch nodes (the parent bbox.x/y <= min(children.x/y)).
+    // For single-parent batches this is correct; for multi-parent it's close enough.
+    const allBatchX = batch.map(n => n.boundingBox.x);
+    const allBatchY = batch.map(n => n.boundingBox.y);
+    const parentBox = {
+      x: Math.min(...allBatchX),
+      y: Math.min(...allBatchY),
+    };
     const relativeLabels = labels.map((label) => ({
       ...label,
       highlightBox: {
@@ -691,7 +842,10 @@ function findCommonAncestor(nodes: NodeMetadata[]): string {
   if (nodes.length === 1) return nodes[0].parentId || nodes[0].id;
   const parentIds = new Set(nodes.map((n) => n.parentId).filter(Boolean));
   if (parentIds.size === 1) return [...parentIds][0]!;
-  return nodes[0].parentId || nodes[0].id;
+  // When nodes have different parents, pick the shallowest node's parent
+  // (closest to root) — this gives the most encompassing export area
+  const shallowest = nodes.reduce((a, b) => (a.depth < b.depth ? a : b));
+  return shallowest.parentId || shallowest.id;
 }
 
 export default router;

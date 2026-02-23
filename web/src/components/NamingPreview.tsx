@@ -223,7 +223,16 @@ export const NamingPreview: React.FC<NamingPreviewProps> = ({
                     onChange={() => toggleSelect(r.nodeId)}
                     style={styles.checkbox}
                   />
-                  <span style={styles.markBadge}>#{r.markId}</span>
+                  {r.imageBase64 ? (
+                    <img
+                      src={`data:image/png;base64,${r.imageBase64}`}
+                      alt={r.originalName}
+                      style={styles.thumbnail}
+                      title={`#${r.markId}`}
+                    />
+                  ) : (
+                    <span style={styles.markBadge}>#{r.markId}</span>
+                  )}
                 </div>
 
                 <div style={styles.rowCenter}>
@@ -450,6 +459,16 @@ const styles: Record<string, React.CSSProperties> = {
     height: 15,
     cursor: 'pointer',
     margin: 0,
+  },
+  thumbnail: {
+    width: 48,
+    height: 48,
+    objectFit: 'contain' as const,
+    borderRadius: 4,
+    border: '1px solid var(--color-border)',
+    background: '#f8f8f8',
+    flexShrink: 0,
+    cursor: 'pointer',
   },
   markBadge: {
     fontSize: 10,

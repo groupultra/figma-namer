@@ -79,6 +79,8 @@ export interface NamingResult {
   suggestedName: string;
   /** Confidence score (0-1) if provided by VLM */
   confidence: number;
+  /** Base64-encoded thumbnail of this node (optional, ~200px wide) */
+  imageBase64?: string;
 }
 
 /** Full naming session state */
@@ -217,6 +219,8 @@ export interface PageInfo {
   nodeIdsToName: string[];
   /** Extracted node metadata for nodes to name */
   nodes: NodeMetadata[];
+  /** Bounding box of the page Frame itself (for coordinate offset) */
+  boundingBox?: BoundingBox;
 }
 
 /** Result of AI structure analysis (Round 1) */

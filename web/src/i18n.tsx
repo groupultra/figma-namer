@@ -68,6 +68,8 @@ const translations = {
   'progress.caption.annotated': { zh: '编号标签标记了当前批次中正在命名的元素', en: 'Numbered labels mark elements being named in this batch' },
   'progress.caption.original': { zh: '无标注的原始截图，用于对比', en: 'Original screenshot without markup — for comparison' },
   'progress.caption.frame': { zh: '完整画面上下文 — AI 在分析时会同时参考此图', en: 'Full frame context — the AI sees this alongside the annotations' },
+  'progress.results': { zh: '已完成结果', en: 'Completed Results' },
+  'progress.showResults': { zh: '展开结果', en: 'Show Results' },
 
   // NamingPreview
   'preview.title': { zh: '命名结果', en: 'Naming Results' },
