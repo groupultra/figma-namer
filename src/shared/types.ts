@@ -152,8 +152,8 @@ export interface VLMResponse {
 
 /** Configuration for the naming tool */
 export interface NamerConfig {
-  /** VLM provider: 'claude' or 'openai' */
-  vlmProvider: 'claude' | 'openai';
+  /** VLM provider: 'claude', 'openai', or 'gemini' */
+  vlmProvider: 'claude' | 'openai' | 'gemini';
   /** Backend API endpoint */
   apiEndpoint: string;
   /** Max nodes per VLM batch */
@@ -172,6 +172,58 @@ export interface NamerConfig {
   minNodeArea: number;
   /** Node types to include in traversal */
   includeNodeTypes: string[];
+}
+
+// ============================================================
+// Web Dashboard Types (Figma REST API)
+// ============================================================
+
+/** A Figma node from the REST API JSON response */
+export interface FigmaNode {
+  id: string;
+  name: string;
+  type: string;
+  visible?: boolean;
+  locked?: boolean;
+  children?: FigmaNode[];
+  absoluteBoundingBox?: BoundingBox;
+  absoluteRenderBounds?: BoundingBox;
+  characters?: string;
+  componentProperties?: Record<string, { type: string; value: string }>;
+  boundVariables?: Record<string, unknown>;
+  layoutMode?: 'HORIZONTAL' | 'VERTICAL' | 'NONE';
+}
+
+/** Analysis result from POST /api/analyze */
+export interface AnalyzeResult {
+  totalNodes: number;
+  nodesByType: Record<string, number>;
+  nodes: NodeMetadata[];
+  estimatedBatches: number;
+  rootName: string;
+}
+
+/** SSE progress event types */
+export type ProgressEventType =
+  | 'batch_started'
+  | 'image_exported'
+  | 'som_rendered'
+  | 'vlm_called'
+  | 'batch_complete'
+  | 'all_complete'
+  | 'error';
+
+/** SSE progress event data */
+export interface ProgressEvent {
+  type: ProgressEventType;
+  sessionId: string;
+  batchIndex?: number;
+  totalBatches?: number;
+  completedNodes?: number;
+  totalNodes?: number;
+  message?: string;
+  results?: NamingResult[];
+  somImageBase64?: string;
 }
 
 /** Default configuration */
